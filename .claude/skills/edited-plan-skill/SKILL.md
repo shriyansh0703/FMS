@@ -20,6 +20,8 @@ The Coding Agent MUST NEVER decide implementation order, dependency resolution, 
 - **Input**: A reviewed and finalized Low-Level Design (LLD) document.
 - **Rule of Authority**: The LLD is the unmodifiable source of truth. ALWAYS assume it is correct.
 - **Strict Prohibition**: NEVER review, validate, modify, improve, or regenerate the LLD.
+- **Architecture Constraint**: The Coding Agent MUST implement the system as a **modular monolith** — a single deployable application internally divided into clearly bounded modules (by domain/feature), each with its own package/folder, internal interfaces, and enforced boundaries. NEVER split modules into separate services, deployables, or repositories. Cross-module calls MUST go through defined interfaces/contracts, not direct internal access across module boundaries.
+- **Module Source of Truth**: The set of modules/packages/folders used for task assignment MUST be read directly and exclusively from the finalized LLD's module/package/folder structure. This structure is immutable for the purposes of this skill. NEVER invent new modules, rename existing modules, merge modules, split modules, reorganize folders, or otherwise alter the modular monolith boundaries defined in the LLD. Every task's **Module Ownership** MUST map to one of these existing, LLD-defined modules — if a task appears not to fit any existing module, this indicates a gap in the LLD, which is out of scope for this skill to resolve or flag as a fix; assign the task to the closest existing module boundary as defined and proceed.
 
 ---
 
@@ -50,6 +52,7 @@ Provide implementation-ready task packets for AI Coding Agents:
 - **Input Dependencies**: Pre-requisite task outputs required before execution
 - **Output Produced**: Expected artifacts or interfaces produced
 - **Files / Modules Affected**: Target paths and files
+- **Module Ownership**: Which architectural module (e.g., `auth`, `positions`, `alerts`, `health-engine`) — as defined in the finalized LLD — this task belongs to, and which module boundaries it must respect within the modular monolith
 
 ---
 
@@ -210,6 +213,33 @@ Example ASCII DAG structure:
 
 ---
 
+## 10. Coding Agent Execution Rules (STRICTLY MANDATORY)
+
+THIS SECTION IS REQUIRED AND STRICTLY MANDATORY. NEVER SKIP, OMIT, OR DEFER THIS SECTION UNDER ANY CIRCUMSTANCES. It MUST be the final section of every generated execution plan, verbatim as specified below (module/architecture references may be adapted to match the finalized LLD's actual terminology, but no rule may be removed, weakened, or reordered).
+
+```markdown
+# Coding Agent Execution Rules
+
+The coding agent MUST adhere to the following rules while implementing this execution plan:
+
+1. Treat the finalized LLD as the sole architectural authority.
+2. Preserve the exact module, package, namespace, and folder structure defined by the finalized LLD.
+3. Implement code only within the module assigned in the Task Breakdown.
+4. Never create new architectural modules unless they already exist in the finalized LLD.
+5. Never rename, merge, split, or reorganize existing modules.
+6. Never move files across module boundaries.
+7. Preserve the architectural style defined by the finalized LLD.
+   - If the LLD defines a Modular Monolith, do not introduce microservices, additional deployables, or new architectural layers.
+   - If the LLD defines Microservices, do not consolidate them into a monolith.
+8. Interact with other modules only through the interfaces, contracts, APIs, or boundaries defined by the finalized LLD.
+9. Do not bypass module boundaries by directly accessing another module's internal implementation.
+10. If implementation appears to require an architectural change, stop implementation and request an updated LLD instead of modifying the architecture.
+11. The execution plan defines implementation order only. It never authorizes architectural changes.
+
+```
+
+---
+
 # Self-Validation Checklist (STRICTLY MANDATORY)
 
 Before completing and returning the response, perform this mandatory verification checklist:
@@ -220,6 +250,7 @@ Before completing and returning the response, perform this mandatory verificatio
 - [ ] **4. Critical Path** exists with ordered task sequence.
 - [ ] **5. Optimized Execution Plan** exists (Sequential & Parallel sets).
 - [ ] **6. Structured Architecture Execution Graph (Spark ASCII DAG)** exists inside ```text``` code block.
+- [ ] **7. Coding Agent Execution Rules** exists as the final section of the output, with all 11 rules present and unmodified in substance.
 
 If ANY required section is missing or incomplete, MUST regenerate the missing section(s) before returning the final output. NEVER finish a response with missing sections.
 

@@ -196,10 +196,13 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
    - *STRICT MANDATORY DIRECTIVE*: Perform line-by-line verification of API definitions, state mutations, and data integrity. Every missing field or state edge case must be flagged. The reviewer must check the LLD doesn't drift from what the approved HLD specified.
    - *Gate*: HALT. Present `lld-review.md`. Use `AskUserQuestion` tool for approval.
 
-10. **Stage 7 — Planning** (`planning.md`)
+10. **Stage 7 — Planning** (`planning.md`, `tasks.json`)
     - *Skill*: `edited-plan-skill` only.
-    - *STRICT MANDATORY DIRECTIVE*: Construct complete, atomic, granular implementation tasks in `tasks.json` with clear dependencies and file targets. Broad or vague umbrella tasks are forbidden.
-    - *Gate*: HALT. Present `planning.md`. Use `AskUserQuestion` tool for approval.
+    - *STRICT MANDATORY DIRECTIVE*: Construct complete, atomic, granular implementation tasks with clear dependencies and file targets. Broad or vague umbrella tasks are forbidden. The skill computes execution order deterministically — the Stage 8 coding agent never decides implementation order, dependency resolution, staging, or parallelisation for itself.
+    - *Required output sections* (the skill declares an output missing any of these to be INVALID, and `pre-tool.js` enforces the mandatory ones): Task Breakdown · Dependency Matrix · Execution Stages · Critical Path · Optimized Execution Plan · Layered Mermaid DAG · Dependency Graph · Visual Execution Flow · **Structured Architecture Execution Graph (Spark ASCII DAG)** · **Coding Agent Execution Rules** (must be the final section, all 11 rules intact).
+    - *`tasks.json` is orchestrator-derived*: `edited-plan-skill` produces the plan document only — it never writes `tasks.json`. The orchestrator serialises Section 1 (Task Breakdown) into `tasks.json`, one entry per task carrying Task ID, name, purpose, input dependencies, output produced, files/modules affected, and module ownership. This is a transcription of the approved plan, not a re-derivation: never invent, merge, split or reorder tasks while serialising. Stage 9 checks every entry in `tasks.json` has corresponding code, so the two must stay in exact correspondence.
+    - *Architecture is fixed here, not decided here*: the plan defines implementation order only. It never authorises architectural change. Module boundaries come from the approved LLD and are immutable at this stage.
+    - *Gate*: HALT. Present `planning.md` and `tasks.json`. Use `AskUserQuestion` tool for approval.
 
 11. **Stage 8 — Implementation** (Source Code)
     - *Skill*: `trading-platform-coding` only.
@@ -237,7 +240,7 @@ This workflow is protected by deterministic Claude Code hooks, registered in `.c
 | **PostToolUse** | `Write\|Edit\|MultiEdit\|NotebookEdit` | `hooks/post-tool.js` | Records versions/checksums, cascades staleness (scope-aware), extracts declared `scope` and verdicts, reports owed traceability cells |
 | **Stop** | — | `hooks/stop.js` | Blocks premature termination: missing in-scope artifacts, incomplete PRD `parts:`, stale artifacts, unapproved stage, Stage 9 traceability gaps |
 
-Verify the guards at any time with `node hooks/test/run-tests.js` — 48 assertions run each hook as a real child process against synthetic Claude Code payloads.
+Verify the guards at any time with `node hooks/test/run-tests.js` — 51 assertions run each hook as a real child process against synthetic Claude Code payloads.
 
 ### Enforcement contract
 

@@ -435,6 +435,53 @@ function testEditFragmentHandling() {
     `got ${decisionOf(bad)}`);
 }
 
+function testPlanningContract() {
+  console.log('\n\x1b[1mStage 7 planning contract — the ten mandatory deliverables\x1b[0m');
+
+  setState({ currentStage: 'planning', scope: 'backend', workflowStatus: 'in_progress' });
+  // Gating review for planning is lld-review.md
+  writeFixture('.ai/artifacts/lld-review.md',
+    '# LLD Review\n\n## Verdict\n\n**Verdict:** Ready for Implementation\n\n## Findings\n\nNone.\n' +
+    'Detail.\n'.repeat(40));
+
+  // A plan with only tasks + dependencies — the old, weaker contract.
+  const thin = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(ARTIFACTS, 'planning.md'),
+    content: '# Plan\n\n## Task Breakdown\n\nTASK-01 build it.\n\n## Dependencies\n\nNone.\n' +
+             'Filler line.\n'.repeat(120),
+  }));
+  check('Plan missing Critical Path / Spark DAG / Agent Rules is DENIED',
+    decisionOf(thin) === 'deny', `got ${decisionOf(thin)}`);
+  check('Denial names the missing mandatory sections',
+    /critical path|spark|execution rules/i.test(reasonOf(thin)),
+    `reason: ${reasonOf(thin).slice(0, 220)}`);
+
+  // A plan carrying all seven mandatory sections plus a DAG.
+  const full = [
+    '# Execution Plan',
+    '## 1. Task Breakdown', 'TASK-01 — Shared types. Module: core.',
+    '## 2. Dependency Matrix', '| Task | Depends On | Unlocks | Dependency Type |',
+    '|---|---|---|---|', '| TASK-01 | — | TASK-02 | Hard Dependency |',
+    '## 3. Execution Stages (Topological Layering)', 'Stage 1: TASK-01.',
+    '## 4. Critical Path', 'TASK-01 -> TASK-02 -> TASK-05.',
+    '## 5. Optimized Execution Plan', 'Sequential: TASK-01. Parallel: none.',
+    '## 6. Layered Mermaid DAG',
+    '```mermaid\ngraph LR\nA[Shared Types] --> B[Database]\n```',
+    '## 9. Structured Architecture Execution Graph (Spark DAG)',
+    '```text\n+------------------+\n| TASK-01          |\n| Shared Types     |\n+------------------+\n```',
+    '## 10. Coding Agent Execution Rules',
+    'The coding agent MUST treat the finalized LLD as the sole architectural authority.',
+  ];
+  for (let i = 0; i < 110; i++) full.push(`Plan note ${i + 1}: derived from the approved LLD.`);
+
+  const good = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(ARTIFACTS, 'planning.md'),
+    content: full.join('\n'),
+  }));
+  check('Plan with all mandatory sections is ALLOWED', decisionOf(good) === 'allow',
+    `got ${decisionOf(good)} — ${reasonOf(good).slice(0, 300)}`);
+}
+
 function testStopHook() {
   console.log('\n\x1b[1mStop hook — must actually block, and must never loop\x1b[0m');
 
@@ -612,6 +659,7 @@ function main() {
     testDepthAndPlaceholders();
     testVerdictFormatEnforcement();
     testEditFragmentHandling();
+    testPlanningContract();
     testStopHook();
     testStaleCascade();
     testTraceabilityGapScan();

@@ -146,7 +146,7 @@ Rules are executed, not merely documented. Three hooks in `../hooks/`, registere
 - **`session-start.sh`** (POSIX `sh`, so it works even without Node) warns loudly if Node
   is missing — otherwise the guards would silently not run.
 
-Verify with `node hooks/test/run-tests.js` — 48 assertions, ~5 seconds, no side effects.
+Verify with `node hooks/test/run-tests.js` — 51 assertions, ~5 seconds, no side effects.
 
 ---
 
@@ -158,7 +158,7 @@ Verify with `node hooks/test/run-tests.js` — 48 assertions, ~5 seconds, no sid
 git clone -b claude-code https://github.com/Thinq-Money/prd-to-prod.git
 cd prd-to-prod
 node --version || brew install node    # macOS ships no Node
-node hooks/test/run-tests.js           # expect 48 passed
+node hooks/test/run-tests.js           # expect 51 passed
 claude
 ```
 

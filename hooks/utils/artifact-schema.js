@@ -261,13 +261,25 @@ const SCHEMAS = {
     requireVerdict: true,
   },
 
+  // Stage 7 — `edited-plan-skill` declares ten deliverables and states that an
+  // output missing even one is "INCOMPLETE and INVALID". Seven of those are
+  // marked STRICTLY MANDATORY; this contract enforces exactly those, so the
+  // skill's own rule is checked at write time rather than trusted.
   'planning.md': {
-    minLines: 60,
+    minLines: 100,
     enforceNoPlaceholders: true,
     requiredSections: [
-      ['task'],
-      ['dependenc'],
+      ['task breakdown', 'task'],
+      ['dependency matrix', 'dependenc'],
+      ['execution stage', 'topological'],
+      ['critical path'],
+      ['optimized execution', 'execution plan'],
+      ['spark', 'architecture execution graph', 'execution graph'],
+      ['coding agent execution rules', 'execution rules'],
     ],
+    // Satisfied by either the Mermaid DAG (section 6) or the ASCII Spark DAG
+    // (section 9) — the skill mandates both.
+    requireDiagram: true,
   },
 
   'review.md': {

@@ -54,7 +54,7 @@ session opens oriented.
 node hooks/test/run-tests.js
 ```
 
-Expected: `Result: 48 passed, 0 failed`. Each hook runs as a real child process
+Expected: `Result: 51 passed, 0 failed`. Each hook runs as a real child process
 against synthetic Claude Code payloads. If this passes, enforcement is genuinely
 active — not merely documented. Takes about 5 seconds and leaves no trace.
 
