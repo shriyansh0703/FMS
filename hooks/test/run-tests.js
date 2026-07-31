@@ -110,7 +110,19 @@ function reasonOf(result) {
     : '') || '';
 }
 
+/**
+ * On a fresh clone workflow-state.json does not exist — it is gitignored and
+ * created from defaults on first hook read. Seed it rather than assuming it.
+ */
+function ensureState() {
+  if (fs.existsSync(STATE_PATH)) return;
+  const { createDefaultState } = require(path.join(HOOKS, 'utils', 'state-manager.js'));
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+  fs.writeFileSync(STATE_PATH, JSON.stringify(createDefaultState(), null, 2) + '\n');
+}
+
 function setState(patch) {
+  ensureState();
   const base = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
   fs.writeFileSync(STATE_PATH, JSON.stringify({ ...base, ...patch }, null, 2) + '\n');
 }
@@ -536,9 +548,11 @@ function main() {
   console.log('\x1b[1m\nWorkflow guard verification — Claude Code hook contract\x1b[0m');
   console.log(`Repo: ${ROOT}\n${'-'.repeat(64)}`);
 
-  const stateBackup = fs.existsSync(STATE_PATH)
-    ? fs.readFileSync(STATE_PATH, 'utf8')
-    : null;
+  // A fresh clone has no state file (gitignored, per-developer). Seed one for
+  // the run and remove it afterwards so the clone is left exactly as found.
+  const stateExisted = fs.existsSync(STATE_PATH);
+  const stateBackup = stateExisted ? fs.readFileSync(STATE_PATH, 'utf8') : null;
+  ensureState();
 
   try {
     testStageKeyNormalisation();
@@ -554,8 +568,12 @@ function main() {
     testTraceabilityGapScan();
   } finally {
     cleanupFixtures();
-    if (stateBackup !== null) {
+    if (stateExisted && stateBackup !== null) {
       fs.writeFileSync(STATE_PATH, stateBackup);
+    } else {
+      // Fresh clone — leave it exactly as we found it.
+      try { fs.unlinkSync(STATE_PATH); } catch { /* already gone */ }
+      try { fs.unlinkSync(STATE_PATH + '.bak'); } catch { /* none */ }
     }
   }
 
