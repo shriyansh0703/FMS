@@ -27,7 +27,26 @@ Then, in Claude Code:
 That's the whole setup. **No `npm install`, no build step, no dependencies** —
 the hooks and dashboard use only Node built-ins.
 
-**Requirements:** Node.js 16+ and Claude Code. Nothing else.
+### Prerequisite: Node.js
+
+**macOS does not ship with Node.** If it is missing, every hook fails to launch
+and the pipeline runs with **no enforcement at all** while appearing to work
+normally — the worst possible failure mode for this repo.
+
+```sh
+node --version      # if this errors:
+brew install node
+```
+
+Minimum Node 12 (the guards use nothing newer); Node 18+ LTS recommended.
+
+A `SessionStart` hook checks this for you on every session — written in POSIX
+`sh` precisely so it still runs when Node is absent. If Node is missing you will
+see a loud `*** WORKFLOW GUARDS ARE NOT RUNNING ***` banner rather than silent
+non-enforcement. It also tells you where the pipeline currently stands, so every
+session opens oriented.
+
+**Requirements:** macOS, Node.js, and Claude Code. Nothing else.
 
 ### Verify the guards are live (recommended first step)
 
