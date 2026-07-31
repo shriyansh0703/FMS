@@ -1,0 +1,24 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Hook audit log — per-developer, high churn, regenerated on every run
+hooks/logs/
+
+# Per-developer workflow state.
+#
+# Tracked state would conflict on every stage transition, since each teammate
+# runs their own pipeline. .ai/state/workflow-state.template.json IS committed;
+# state-manager.js recreates workflow-state.json from defaults on first read.
+.ai/state/workflow-state.json
+.ai/state/workflow-state.json.bak
+.ai/state/*.corrupted.*
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

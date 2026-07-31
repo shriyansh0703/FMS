@@ -48,7 +48,9 @@ const validateWorkflowState = (obj) => {
         return { valid: false, errors: ['Input must be a valid object'] };
     }
     
-    const requiredFields = ['currentStage', 'workflowStatus', 'iteration', 'approvedStages', 'rejectedStages', 'staleArtifacts', 'lastUpdated', 'artifactVersions'];
+    // `scope` is required to be PRESENT (it may legitimately be null until
+    // Stage 1 resolves it) — it is the hard switch gating stages 3 and 5.
+    const requiredFields = ['currentStage', 'workflowStatus', 'iteration', 'approvedStages', 'rejectedStages', 'staleArtifacts', 'lastUpdated', 'artifactVersions', 'scope'];
     requiredFields.forEach(field => {
         if (!(field in obj)) errors.push(`Missing required field: ${field}`);
     });

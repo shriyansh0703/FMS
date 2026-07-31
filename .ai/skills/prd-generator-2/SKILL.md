@@ -1,6 +1,6 @@
 ---
-name: prd-generator
-description: Create and validate product requirements documents (PRD). Use when writing requirements, defining user stories, specifying acceptance criteria, mapping user flows, analyzing user needs, or working on product-requirements.md files in docs/specs/. Strictly tech-agnostic — PRDs describe WHAT and WHY, never HOW. Includes a one-question-at-a-time interview mode for single-user sessions, a validation checklist, and a multi-angle review process.
+name: prd-generator-split
+description: Create and validate product requirements documents (PRD). Use when writing requirements, defining user stories, specifying acceptance criteria, mapping user flows, analyzing user needs, or working on product-requirements.md files in docs/specs/. Strictly tech-agnostic — PRDs describe WHAT and WHY, never HOW. Includes a one-question-at-a-time interview mode (every question posed as options with a recommended pick) for single-user sessions, automatic splitting into multiple linked files once a PRD grows large, a validation checklist, and a multi-angle review process.
 allowed-tools: Read, Write, Edit, Task, TodoWrite, Grep, Glob
 metadata:
   mcpmarket-version: 1.1.0
@@ -45,6 +45,8 @@ The PRD template is at [template.md](template.md). Use this structure exactly.
 1. Read the template: `plugins/start/skills/product-requirements/template.md`
 2. Write to spec directory: `docs/specs/[NNN]-[name]/product-requirements.md`
 
+**If the PRD is large, split it.** Before writing the final draft, check the size gate below. If it's tripped, follow [split.md](split.md) instead of writing one file — the section structure and content requirements stay identical, only the file boundaries change.
+
 ## PRD Section Map
 
 The template's sections, in order, and what each is for:
@@ -69,6 +71,48 @@ The template's sections, in order, and what each is for:
 | Risks & Constraints | Constraints, assumptions, and a rated risk register |
 | Open Questions | What's still unresolved |
 | Supporting Research | Competitive analysis, user research, market data |
+
+## Splitting Large PRDs Into Multiple Files
+
+A single-file PRD stops being usable past a certain size — readers can't hold it in their head, diffs become noisy, and the Engineering Digest stops being a faster read than the document itself. Check the size gate below every time you're about to write or regenerate the full draft.
+
+### Size Gate — check before writing the final draft
+
+Split if **any** of these is true:
+- The drafted content would exceed roughly **800 lines** or **6,000 words** as a single file
+- There are **more than 4 primary user personas**, or **more than 6 user flows**
+- There are **more than 10 Must-Have features**, or the Functional Requirements section alone would exceed ~250 lines
+- The user explicitly asks for the PRD to be split, or asks for a specific section as its own file
+
+If none apply, write a single `product-requirements.md` as before — don't split preemptively just because a PRD covers a lot of ground in prose; split because it's grown too large to navigate as one file.
+
+### PRD Length Handling — Ask Before Splitting
+
+Before drafting the final PRD, run the following sequence rather than splitting (or not) unilaterally:
+
+1. **Estimate expected length** based on the scope gathered so far (persona count, flow count, Must-Have feature count, or overall prose volume).
+2. **If the estimate trips the Size Gate above** (long/complex), stop and ask the user whether to split into multiple files. Present it as a plain Yes / No choice — don't default silently in either direction.
+   - **If Yes:** offer split options and let the user pick, rather than assuming one shape is the only option:
+     - **By feature/module (recommended)** — one file per feature, named after that feature (e.g., `product-requirements-order-lifecycle.md`), owning everything about it end-to-end. This is the recommended pick unless the user has a reason to prefer another shape — it mirrors how a business actually owns and reviews a PRD, one feature owner per file.
+     - By phase (MVP, V2, etc.)
+     - By system component (frontend, backend, infra) — note to the user that a component-based split only makes sense once implementation grouping is relevant, and may pull in language that borders on technical; keep the PRD content itself tech-agnostic regardless of how files are divided
+     - Custom split, described by the user in free text
+
+     Once a shape is chosen, follow [split.md](split.md) for the mechanics (breadcrumb links, cross-referencing, index skeleton), naming each file `product-requirements-[name].md` after whatever it owns (a feature, a phase, a component, or the user's custom grouping) so the file name alone identifies its contents — never a generic label like "part 2" or "functional".
+   - **If No:** generate the full PRD as a single document, even if it exceeds the Size Gate thresholds. Respect this choice — don't re-split later without asking again.
+3. If the estimate does **not** trip the Size Gate, skip this check entirely and write a single file as normal — don't ask the split question for a PRD that isn't large.
+4. **If a split was performed, run the Split Completeness Check** (see [split.md](split.md) → Split Completeness Check) before reporting the PRD as done. Confirm every template.md section landed somewhere in the file set, every feature discussed has its own file or an explicit Out-of-Scope entry, every cross-file link resolves, and no content was duplicated instead of moved. A split PRD is never presented as complete on file existence alone — completeness of content across the whole set is what matters.
+
+### How to split
+
+Follow [split.md](split.md) for the exact file boundaries, naming convention, cross-linking format, and the index-file template. In short:
+1. Everything scoping-relevant and short (Engineering Digest, Executive Summary, Problem Statement, Goals, Stakeholders) stays in an index file, `product-requirements.md`, which also carries a table of contents linking every other part.
+2. Everything else is grouped into topically-coherent part files (personas + flows; functional + non-functional requirements; scope + metrics + timeline; risks + open questions + research) under the same directory.
+3. Every part file opens with a one-line breadcrumb back to the index, and the index links to every part.
+4. The Validation Checklist, Domain Invariants Gate, Reality-Check Gate, Interview Mode, and Multi-Angle Final Validation all still apply to the PRD **as a whole** — run them across every file, not just the index, before calling it done. A gap in a part file is still a gap in the PRD.
+5. Report split status in Output Format below, listing every file produced.
+
+Never split a single section's content across two files (e.g., half of Functional Requirements in one file and half in another) — a section is a unit, and the boundary always falls between sections.
 
 ## Domain Invariants Gate (Run Before Drafting)
 
@@ -97,7 +141,14 @@ When gathering the information needed to fill in the template, default to a sing
    - Downgrade the feature to Should-Have, or
    - Mark the question `BLOCKING: required before estimation` in Open Questions with an owner and target date, and note the dependency on the feature itself.
    A Must-Have with an unresolved dependency is not a requirement yet — it's a placeholder wearing a checkbox, and Multi-Angle Final Validation below must catch it if the interview doesn't.
-6. **Prefer specific, concrete questions** over open-ended ones ("What's the maximum group size for split payments?" beats "Tell me about split payments"). Use the persona's/problem's own vocabulary once established.
+6. **Every question must be posed as options with one recommended pick — never a bare open-ended question.** This is a strict rule, not a style preference:
+   - Turn the question into 2-4 concrete, mutually exclusive options. ("What's the maximum group size for split payments?" becomes options like "2 payers", "4 payers", "8 payers", "No cap" — not asked as free text.)
+   - Mark exactly one option **(Recommended)** with a one-line reason tied to the persona, problem evidence, or domain norm gathered so far.
+   - If the environment has an interactive option-picker tool available, use it for the question. Otherwise render the options as a short lettered/labeled list in chat, with the recommended one clearly flagged, and let the user reply with their pick or override it with something else entirely.
+   - The user's answer is always final — the recommendation is a default to accelerate the interview, never a constraint on what they can choose. An explicit override or free-text answer always wins.
+   - **Even genuinely open-ended-seeming questions get this treatment.** For a number, date, or name with no natural small option set, still propose 2-4 concrete candidate values (e.g., derived from the persona's stated tolerance, an industry benchmark, or a round default) with one marked Recommended, plus an implicit "something else" the user can type instead. Never send a question with no options attached.
+   - This subsumes and generalizes the Decision Brief pattern below — Decision Briefs are the version of this rule for judgment-call trade-offs specifically; this point is the same rule applied to every interview question, including plain fact lookups.
+   - Use the persona's/problem's own vocabulary once established, and keep each option concrete enough to be independently actionable.
 7. **Surface tech-agnostic violations as they happen** — if the user's answer contains an implementation detail (e.g., "we'll use OAuth"), acknowledge it but translate it into the outcome it implies for the PRD ("got it — so the requirement is that a user only signs in once, and it stays true regardless of implementation"). If the user explicitly asks what technology to use, see "Tech Stack Suggestions" below — you may answer conversationally, but the answer never enters the PRD.
 8. Only after the interview reaches the confidence target: generate the full PRD in one pass, then run it through Multi-Angle Final Validation below before presenting it as done.
 
@@ -116,7 +167,7 @@ If an answer is missing or shaky after reasonable interview effort, don't block 
 
 ## Decision Briefs for Judgment-Call Questions
 
-Not every interview question is a plain fact lookup — some are genuine trade-offs (e.g., "should the split-payment cap be 4 or 8 payers?", "does this feature belong in MVP Scope or Future Scope?"). For those, use a lightweight decision brief rather than a bare open question (loosely inspired by gstack's office-hours decision-brief pattern, stripped of its tooling-specific mechanics — no completeness scoring, no D-numbering):
+Interview Mode point 6 above already requires every question to carry options and a recommendation. Judgment-call trade-offs (e.g., "should the split-payment cap be 4 or 8 payers?", "does this feature belong in MVP Scope or Future Scope?") are the same rule, just with more riding on the answer — so give them the fuller decision-brief treatment below instead of a minimal options list (loosely inspired by gstack's office-hours decision-brief pattern, stripped of its tooling-specific mechanics — no completeness scoring, no D-numbering):
 
 - **Name the question and why it matters**, in one line.
 - **Give 2-4 real options, presented in ranked sequence** (1st, 2nd, 3rd...) rather than as an unordered bullet list — order reflects your actual assessment of fit for this product, not the order the options happened to come to mind. Each option gets one genuine upside and one genuine downside — never a strawman option that exists just to make another look better.
@@ -124,7 +175,7 @@ Not every interview question is a plain fact lookup — some are genuine trade-o
 - **State a recommendation** and the one-line reason for it, but treat the user's answer as final regardless of the recommendation. The recommendation is normally the 1st-ranked option; if it isn't, say why explicitly.
 - **If there are more than 4 real options** (e.g., prioritizing a long feature backlog into MoSCoW), don't present them all at once — batch into groups of four or ask sequentially, rather than asking the user to hold six trade-offs in their head at once. Sequence numbering restarts within each batch and should say so (e.g., "1st of this batch").
 
-In a chat environment, render these as a short paragraph, or through an interactive option-picker when the choice is a clean single-select — never invent a UI control that doesn't actually exist in the current environment.
+In a chat environment, render these through an interactive option-picker tool (e.g. `ask_user_input_v0` or equivalent) when the choice is a clean single- or multi-select and such a tool is available — that's the default, not a fallback. Only drop to a plain-text lettered list with the recommendation flagged if no such tool exists in the current environment. Never invent a UI control that doesn't actually exist.
 
 ## Cycle Pattern (Multi-Agent Variant)
 
@@ -198,7 +249,7 @@ Before ticking any Validation Checklist item that claims coverage (e.g., "every 
 
 ## Validation Checklist
 
-See [validation.md](validation.md) for the complete checklist. Key gates:
+See [validation.md](validation.md) for the complete checklist. If the PRD was split per [split.md](split.md), also run the split-specific checks in validation.md's "Split-File Consistency" section. Key gates:
 
 - [ ] All required sections are complete
 - [ ] No [NEEDS CLARIFICATION] markers remain
@@ -215,6 +266,8 @@ See [validation.md](validation.md) for the complete checklist. Key gates:
 - [ ] No feature redundancy, no duplication between Acceptance Criteria / Business Rules / User Flows, and no cross-section contradiction
 - [ ] No technical implementation details anywhere, including in Non-Functional Requirements
 - [ ] Engineering Digest and Estimation Blockers sections are populated and consistent with the rest of the document
+- [ ] Every interview question asked during drafting was posed as options with one recommended pick, never bare open-ended
+- [ ] If split across files, every part file links back to the index and the index links every part (see split.md)
 - [ ] A new team member could understand this PRD
 
 ## Output Format
@@ -223,6 +276,14 @@ After PRD work, report:
 
 ```
 📝 PRD Status: [spec-id]-[name]
+
+Files:
+- product-requirements.md (index) — Engineering Digest, Executive Summary, Problem Statement, Goals, Stakeholders
+[If split, list every feature file produced, e.g.:]
+- product-requirements-order-lifecycle.md — Order Lifecycle: personas, flows, functional & non-functional requirements, edge cases, scope
+- product-requirements-payments.md — Payments: personas, flows, functional & non-functional requirements, edge cases, scope
+- product-requirements-notifications.md — Notifications: personas, flows, functional & non-functional requirements, edge cases, scope
+[If not split, state: "Single file — below size gate, see split.md" and omit the file lines above.]
 
 Sections Completed:
 - Engineering Digest: ✅ Complete (written last, after all sections below)
@@ -253,4 +314,4 @@ Next Steps:
 
 ## Examples
 
-See [good-prd.md](good-prd.md) for a reference on a well-structured PRD using the current template, including a fully-branched example user flow.
+See [good-prd.md](good-prd.md) for a reference on a well-structured PRD using the current template, including a fully-branched example user flow. See [split.md](split.md) for the multi-file layout, naming, and cross-linking rules used once a PRD trips the size gate.

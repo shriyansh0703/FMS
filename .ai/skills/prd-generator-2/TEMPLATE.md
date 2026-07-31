@@ -7,6 +7,8 @@ version: "1.0"
 # Product Requirements Document
 
 > **Tech-Agnostic Rule:** This entire document describes WHAT users need and WHY — never HOW it is built. No frameworks, languages, databases, cloud providers, APIs, or architecture diagrams belong here. If you find yourself naming a technology, stop and rewrite the sentence as a user-facing outcome. (See SKILL.md → "Core Principle: Tech-Agnostic Always" for examples.)
+>
+> **Size Rule:** If drafting this document will exceed roughly 800 lines / 6,000 words, or cover more than 4 personas, more than 6 user flows, or more than 10 Must-Have features, stop and use [split.md](split.md) instead — the sections below stay exactly the same, they just move into linked files. Check this before you start writing the final draft, not after.
 
 ## Validation Checklist
 

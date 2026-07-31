@@ -32,12 +32,18 @@ function createDefaultState() {
   return {
     currentStage: null,
     currentSkill: null,
+    // Hard switch resolved at Stage 1; gates which of 3a/3b and 5a/5b may run.
+    // Null until the PRD declares it.
+    scope: null,
+    subStage: null,
     workflowStatus: 'not_started',
     iteration: 0,
     approvedStages: [],
     rejectedStages: [],
     staleArtifacts: [],
     waitingForApproval: null,
+    // Populated when a PRD is split into feature files via frontmatter `parts:`.
+    parts: [],
     lastUpdated: null,
     artifactVersions,
   };

@@ -1,23 +1,50 @@
 'use strict';
 
-const { ARTIFACT_OWNER, VALID_APPROVAL_STATUSES } = require('../utils/config.js');
+const { ARTIFACT_OWNER, VALID_APPROVAL_STATUSES, ANY_STAGE } = require('../utils/config.js');
+const { canonicalKey, stageLabel } = require('../utils/stage-keys.js');
 
 /**
  * Verify the artifact belongs to the current stage.
- * @param {string} artifactName 
- * @param {string} currentStage 
+ *
+ * Both sides are canonicalised first. Previously this compared an owner key
+ * ('hld_backend') against whatever workflow-state.json happened to hold for
+ * currentStage (the number 4), so the comparison was meaningless.
+ *
+ * @param {string} artifactName
+ * @param {string|number} currentStage Any stage form: 4, '3a', 'hld_review'
+ * @param {string} [scope] Disambiguates bare stage numbers 3 and 5
  * @returns {{valid: boolean, errors: string[]}}
  */
-const validateArtifactOwnership = (artifactName, currentStage) => {
+const validateArtifactOwnership = (artifactName, currentStage, scope) => {
     const errors = [];
     const owner = ARTIFACT_OWNER[artifactName];
-    
+
     if (!owner) {
         errors.push(`Unknown artifact: ${artifactName}`);
-    } else if (owner !== currentStage) {
-        errors.push(`Artifact ${artifactName} belongs to stage ${owner}, not ${currentStage}`);
+        return { valid: false, errors };
     }
-    
+
+    // Incrementally-maintained artifacts (traceability.md) have no single owner.
+    if (owner === ANY_STAGE) {
+        return { valid: true, errors };
+    }
+
+    const currentKey = canonicalKey(currentStage, scope);
+
+    // If we cannot resolve the current stage, do not manufacture a violation —
+    // that would block all writes on a malformed state file.
+    if (currentKey === null) {
+        return { valid: true, errors };
+    }
+
+    if (owner !== currentKey) {
+        errors.push(
+            `Artifact ${artifactName} is owned by ${stageLabel(owner)}, but the ` +
+            `workflow is at ${stageLabel(currentKey)}. Advance the stage before ` +
+            `writing this artifact, or correct .ai/state/workflow-state.json.`
+        );
+    }
+
     return { valid: errors.length === 0, errors };
 };
 
