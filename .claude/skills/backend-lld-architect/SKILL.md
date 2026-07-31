@@ -1,5 +1,5 @@
 ---
-name: backend-lld-design
+name: backend-lld-architect
 description: "Generate exhaustive, implementation-ready Low-Level Design (LLD) documents for backend systems, using a PRD (Product Requirements Doc) and/or HLD (High-Level Design) as source input. Use this skill whenever the user asks to 'create an LLD', 'design the backend in detail', 'low-level design for X', wants class diagrams, database schemas, design patterns, SOLID breakdowns, interface/skeleton code, or concurrency & thread-safety analysis for a backend system or feature. Also trigger when the user uploads or references a PRD/HLD document and asks to turn it into a detailed backend design, or asks for 'production-grade', 'FAANG-style', or 'principal engineer level' system design. Push to use this skill even if the user only says 'design the backend for X' without explicitly saying LLD."
 risk: unknown
 source: custom

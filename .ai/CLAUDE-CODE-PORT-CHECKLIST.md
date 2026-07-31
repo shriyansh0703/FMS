@@ -122,7 +122,7 @@ layer instead: `config.js` now recognises artifacts under `.ai/artifacts/`,
 - [x] Git recorded all moves as renames (`R`), independently confirming identity
 - [x] `SKILL_MAP` in `config.js` already matched the directory names — no edit needed
 - [x] ~~Align each SKILL.md's output path~~ → **cancelled per user directive**; handled by `ARTIFACT_SEARCH_DIRS`
-- [ ] ⚠️ **Open:** `backend-lld-architect/` declares `name: backend-lld-design` in its frontmatter — a directory/name mismatch. Left untouched (skill content is immutable). See Part C.
+- [x] ✅ **Resolved:** `backend-lld-architect/` frontmatter `name` now matches its directory. See Part C1.
 - [ ] ⚠️ **Open:** `prd-generator` declares `allowed-tools: … Task …`. Left untouched. See Part C.
 
 ### B6. Docs + reset
@@ -157,18 +157,15 @@ layer instead: `config.js` now recognises artifacts under `.ai/artifacts/`,
 Each of these touches skill content, which is immutable under the standing
 directive. They are reported, not fixed.
 
-### C1. ⚠️ `backend-lld-architect` directory/name mismatch
+### C1. ✅ RESOLVED — `backend-lld-architect` name mismatch
 
-`.claude/skills/backend-lld-architect/SKILL.md` declares `name: backend-lld-design`.
-Every other locked skill's frontmatter `name` matches its directory. The workflow
-doc and `config.js` `SKILL_MAP` both reference `backend-lld-architect`.
+`.claude/skills/backend-lld-architect/SKILL.md` declared `name: backend-lld-design`,
+the only directory/frontmatter mismatch in the set. It worked — Claude Code resolves
+skills by directory name — but it was the last inconsistency left.
 
-**Risk:** the Stage 5a skill may resolve under an unexpected identifier, or not at
-all. **Two fixes, both one-line — your call:**
-- rename the directory to `backend-lld-design`, and update `SKILL_MAP` + `prd-to-prod.md`; or
-- change the frontmatter `name` to `backend-lld-architect` (a skill edit).
-
-Verify by running `/prd-to-prod` to Stage 5a and checking the skill loads.
+Fixed by changing the single `name:` line to `backend-lld-architect`. The user's own
+updated copy of this skill declares the same name, confirming the intended value. All
+12 locked skills now have frontmatter names matching their directories.
 
 ### C2. ⚠️ `prd-generator-split` declares `allowed-tools: Read, Write, Edit, Task, TodoWrite, Grep, Glob`
 
@@ -223,7 +220,7 @@ skill that actually exists. The rewritten README follows the workflow doc.
 ## Part D — How to verify the port yourself
 
 ```sh
-node hooks/test/run-tests.js      # 44 assertions, ~5s, no side effects
+node hooks/test/run-tests.js      # 51 assertions, ~5s, no side effects
 ```
 
 Then, in Claude Code:
@@ -238,3 +235,54 @@ Signs the port is working:
 - It calls `AskUserQuestion` rather than waiting for chat text.
 - A deliberately thin artifact gets **denied** with a reason naming the depth floor.
 - `hooks/logs/hook-events.jsonl` fills with `allow`/`deny` decisions.
+
+---
+
+## Part E — Changes made AFTER the initial port
+
+Parts A–D describe the Antigravity→Claude Code port. The pipeline has since been
+restructured. The counts in those sections (13 skills, 44 assertions) are historical.
+
+### E1. Stage 1 skill replaced
+`prd-generator` → **`prd-generator-split`**. The old skill referenced two support files
+it could not resolve — `good-prd.md` (actually at `reference/good-prd.md`) and `split.md`
+(absent entirely). `split.md` defines the multi-file split rules the `parts:` mechanism
+depends on, so that behaviour had no rules behind it. Support files renamed to lowercase
+(`template.md`, `validation.md`); old skill archived to `.ai/skills/`.
+
+### E2. HLD stages 3a + 3b merged into a single Stage 3
+`backend-hld-architect` and `frontend-hld-designer` → **`system-hld-designer`**, producing
+one unified `hld.md` covering client, services, data and infrastructure together. Client
+and server decisions constrain each other, so splitting them meant those trade-offs were
+never made in one place. Scope no longer gates Stage 3; it still gates Stage 5.
+
+### E3. HLD reviewer upgraded
+Single-file `hld-reviewer` → **20-file version** (9 review lenses, scoring rubric,
+severity levels, domain knowledge, report template). Old version archived as
+`.ai/skills/hld-reviewer-v1-single-file`.
+
+### E4. Verdict aliases added — this would have blocked the pipeline
+`hld-reviewer`, `lld-reviewer` and `frontend-lld-review` all emit "Ready for
+Implementation / Ready with Conditions / Not Ready"; the new reviewer's rubric adds
+"Approve / Approve with required changes / Do not build from this yet". The gate accepted
+only the three SCREAMING_CASE tokens, so **every review write would have been denied as
+non-canonical**. `VERDICT_ALIASES` in `artifact-schema.js` now normalises the reviewers'
+own wording, and the parser handles the bullet+score form. Template placeholders are still
+correctly rejected.
+
+### E5. Stage 7 planning contract enforced
+New `edited-plan-skill` (superset, +31 lines) declares ten deliverables and calls an output
+missing any of them INVALID. `planning.md` now enforces the seven STRICTLY MANDATORY
+sections plus a diagram, floor 60 → 100 lines. **Gap found:** the skill never writes
+`tasks.json`, which `stop.js` requires and Stage 9 consumes — resolved by documenting it as
+orchestrator-derived from Section 1's Task Breakdown.
+
+### E6. Plugins ship with the repo
+`caveman` and `ponytail` are declared in `.claude/settings.json` at **ultra**, so any clone
+on any machine gets them without per-person setup. `CLAUDE.md` draws the boundary: caveman
+governs chat output only (artifacts stay full-depth, and `pre-tool.js` denies thin ones
+regardless); ponytail governs how much gets built, not how completely. Where they conflict,
+the workflow wins.
+
+### E7. Current shape
+**12 locked skills · 51 guard assertions · all frontmatter names match directories.**
