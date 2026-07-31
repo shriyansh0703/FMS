@@ -161,7 +161,7 @@ async function main() {
       if (findPrdIndexFiles().length === 0) {
         issues.push(
           'The PRD index (requirements.md / product-requirements.md) does not exist. ' +
-          'Produce it with the prd-generator skill before ending the turn.'
+          'Produce it with the prd-generator-split skill before ending the turn.'
         );
       }
     } else if (!findArtifact(artifact)) {

@@ -49,7 +49,7 @@ const STAGE_NAMES = {
 
 // Skill mappings per sub-stage
 const SKILL_MAP = {
-  requirement:     ['prd-generator'],
+  requirement:     ['prd-generator-split'],
   prd_review:      ['prd-reviewing'],
   hld_backend:     ['backend-hld-architect'],
   hld_frontend:    ['frontend-hld-designer'],

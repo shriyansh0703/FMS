@@ -50,7 +50,7 @@ graph TD
 This workflow leverages specialized skills located in the `.ai/skills/` directory. Depending on the stage, the agent dynamically swaps into these roles:
 
 ### Core Master Skills
-- **`prd-generator`**: (Stage 1) Systematically reviews ambiguous inputs and generates a rigorous, engineering-ready Product Requirements Document (PRD).
+- **`prd-generator-split`**: (Stage 1) Systematically reviews ambiguous inputs and generates a rigorous, engineering-ready Product Requirements Document (PRD).
 - **`fullstack-fintech-architect`**: (Stages 2, 3, 5) A master skill combining fintech domain knowledge, frontend OS (Next.js/React), backend architectures (Rust/Go), and rigorous test protocols.
 
 ### Architectural & Review Skills

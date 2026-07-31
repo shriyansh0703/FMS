@@ -170,13 +170,32 @@ all. **Two fixes, both one-line — your call:**
 
 Verify by running `/prd-to-prod` to Stage 5a and checking the skill loads.
 
-### C2. ⚠️ `prd-generator` declares `allowed-tools: Read, Write, Edit, Task, TodoWrite, Grep, Glob`
+### C2. ⚠️ `prd-generator-split` declares `allowed-tools: Read, Write, Edit, Task, TodoWrite, Grep, Glob`
 
 `Task` and `TodoWrite` should be confirmed against your Claude Code version's tool
 names. An entry that doesn't match a real tool silently strips that capability
-from the skill — for `prd-generator` that could mean losing subagent delegation
-during Stage 1. The other 12 locked skills declare no `allowed-tools` and inherit
-everything, which is fine.
+from the skill — for the Stage 1 skill that could mean losing subagent delegation.
+The other 12 locked skills declare no `allowed-tools` and inherit everything.
+
+### C2b. ✅ RESOLVED — Stage 1 swapped to `prd-generator-split`
+
+`prd-generator` had **two broken support-file references**: its `SKILL.md` pointed at
+`good-prd.md` (the file actually lived at `reference/good-prd.md`) and at `split.md`
+(**absent from that folder entirely**). `split.md` defines the multi-file layout, naming
+and cross-linking rules used when a PRD trips the size gate — so the `parts:` splitting
+behaviour the whole workflow depends on had no rules behind it.
+
+Replaced with `prd-generator-split`, which ships all four support files correctly
+referenced. Changes made during promotion:
+- `.ai/skills/prd-generator-2/` → `.claude/skills/prd-generator-split/`
+- `TEMPLATE.md` → `template.md`, `VALIDATE.md` → **`validation.md`**
+  (not `validate.md`: the SKILL.md references `validation.md`, so plain lowercasing
+  would have left the reference broken)
+- Frontmatter `name: prd-generator-split` now matches the directory
+- `prd-generator` demoted to `.ai/skills/` — disabled, not deleted
+- `SKILL_MAP`, `prd-to-prod.md`, `CLAUDE.md`, `README.md`, `stop.js` all rewired
+
+All four internal references verified resolving. Discoverable skill count remains 13.
 
 ### C3. `workflow-state.json` — gitignored (decided)
 
@@ -188,7 +207,7 @@ conflict on every stage transition.
 ### C4. Retained-but-inert files
 
 Nothing was deleted, per the standing directive:
-- `.ai/skills/prd-generator-2/`, `.ai/skills/requirements-analysis-2/` — undiscoverable by Claude Code. Promote later by moving into `.claude/skills/` and adding to the locked map.
+- `.ai/skills/prd-generator/`, `.ai/skills/requirements-analysis-2/` — undiscoverable by Claude Code. Promote later by moving into `.claude/skills/` and adding to the locked map.
 - `.ai/stages/*/SKILL.md` — 8 legacy stage skills, reference only.
 - `.agents/hooks.json` — Antigravity config, now inert.
 - 5 previously-dead validators: `stage-validator`, `dependency-validator`, `workflow-validator`, `checksum-validator` remain unreferenced (`markdown-validator` is now wired in). They are candidates for future gates, not bugs.

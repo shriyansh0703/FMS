@@ -27,7 +27,7 @@ file) is ordinary engineering work and does not run through the pipeline.
 
 | Stage | Skill | Runs when |
 |---|---|---|
-| 1 Requirement Analysis | `prd-generator` | always |
+| 1 Requirement Analysis | `prd-generator-split` | always |
 | 2 PRD Review | `prd-reviewing` | always |
 | 3a HLD Backend | `backend-hld-architect` | scope ∈ {backend, fullstack} |
 | 3b HLD Frontend | `frontend-hld-designer` | scope ∈ {frontend, fullstack} |

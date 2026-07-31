@@ -16,7 +16,7 @@ Every feature entering this pipeline must be classified into exactly one scope b
 
 ### How scope gets set:
 1. If the user states it explicitly ("this is a backend-only change", "frontend only, API already exists", "full feature, both sides") — use that.
-2. `prd-generator` MUST ask mandatory clarifying questions to confirm scope (`backend`, `frontend`, or `fullstack`), target behavior, edge cases, and constraints before finalizing `docs/specs/[NNN]-[name]/product-requirements.md`.
+2. `prd-generator-split` MUST ask mandatory clarifying questions to confirm scope (`backend`, `frontend`, or `fullstack`), target behavior, edge cases, and constraints before finalizing `docs/specs/[NNN]-[name]/product-requirements.md`.
 
 This field is a hard switch. Stage 3 (High-Level Design) and Stage 5 (Low-Level Design) each split into a backend sub-stage and a frontend sub-stage below; only the sub-stage(s) matching the declared scope may run. Getting scope wrong wastes an entire sub-stage's work, so do not guess past genuine ambiguity — ask once, then lock it. If a later stage discovers scope was wrong (e.g. Stage 5a discovers the backend change requires a UI change too), HALT and ask the user to explicitly confirm scope should change — never start running frontend skills unilaterally because it seemed necessary.
 
@@ -26,7 +26,7 @@ This field is a hard switch. Stage 3 (High-Level Design) and Stage 5 (Low-Level 
 
 | Stage | Name | Runs When | Skill(s) — ONLY these, nothing else |
 |---|---|---|---|
-| 1 | Requirement Analysis | always | `prd-generator` |
+| 1 | Requirement Analysis | always | `prd-generator-split` |
 | 2 | PRD Review | always | `prd-reviewing` |
 | 3a | High-Level Design — Backend | scope = backend or fullstack | `backend-hld-architect` |
 | 3b | High-Level Design — Frontend | scope = frontend or fullstack | `frontend-hld-designer` |
@@ -45,9 +45,23 @@ This field is a hard switch. Stage 3 (High-Level Design) and Stage 5 (Low-Level 
 
 The 13 skills named above are the **only** skills in `.claude/skills/`, which is the sole directory Claude Code discovers project skills from. The lock is therefore structural, not honour-system: an unlisted skill is not merely forbidden, it is **invisible to the runtime** and cannot be invoked.
 
-Skill folders that remain in `.ai/skills/` (currently `prd-generator-2`, `requirements-analysis-2`) and the legacy stage skills under `.ai/stages/*/SKILL.md` are **explicitly disabled for this workflow**. They are retained for reference only. Their presence does not authorize their use here, and Claude Code will not surface them.
+Skill folders that remain in `.ai/skills/` (currently `prd-generator`, `requirements-analysis-2`) and the legacy stage skills under `.ai/stages/*/SKILL.md` are **explicitly disabled for this workflow**. They are retained for reference only. Their presence does not authorize their use here, and Claude Code will not surface them.
 
 Skill file contents are treated as immutable by this port — the locked skills were relocated byte-for-byte and must not be edited to accommodate tooling. Path and runtime concerns are handled by the hooks (`hooks/utils/config.js` recognises artifacts under `.ai/artifacts/`, `.ai/stages/**` and `docs/specs/**`), never by rewriting a skill.
+
+### Stage 1 skill: why `prd-generator-split`
+
+Stage 1 originally used `prd-generator`, which is now disabled. That skill's `SKILL.md`
+referenced two support files it could not actually load — `good-prd.md` (which lived at
+`reference/good-prd.md`) and `split.md` (which did not exist in that folder at all). The
+missing `split.md` is the file defining the multi-file layout, naming and cross-linking
+rules used when a PRD trips the size gate, so the `parts:` splitting behaviour this
+workflow depends on had no rules backing it.
+
+`prd-generator-split` carries the same instructions with all four support files present and
+correctly referenced (`template.md`, `validation.md`, `split.md`, `good-prd.md`). Its
+support filenames are lowercase and its frontmatter `name` matches its directory, so the
+skill resolves unambiguously.
 
 ---
 
@@ -131,10 +145,10 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
 ## The 10-Stage Pipeline (Locked)
 
 1. **Stage 1 — Requirement Analysis** (`docs/specs/[NNN]-[name]/product-requirements.md`)
-   - *Skill*: `prd-generator` only.
+   - *Skill*: `prd-generator-split` only.
    - *STRICT MANDATORY DIRECTIVE*: No shortcuts. The agent MUST ask clarifying questions to the user during this stage to flesh out functional/non-functional requirements, edge cases, user personas, failure modes, acceptance criteria, and exact scope (`backend` | `frontend` | `fullstack`). Generic or surface-level PRDs are forbidden.
    - The primary entry-point artifact is written to `docs/specs/[NNN]-[name]/product-requirements.md` (the index file).
-   - If a size gate trips (roughly 800 lines / 6,000 words, >4 personas, >6 flows, or >10 Must-Have features), `prd-generator` generates split feature files (`product-requirements-[feature-name].md`) and lists them in the index's frontmatter `parts:` array.
+   - If a size gate trips (roughly 800 lines / 6,000 words, >4 personas, >6 flows, or >10 Must-Have features), `prd-generator-split` generates split feature files (`product-requirements-[feature-name].md`) and lists them in the index's frontmatter `parts:` array.
    - This stage must also resolve and explicitly state the `scope` field (`backend` | `frontend` | `fullstack`) at the top of the PRD index file per the Scope Declaration section above.
    - *Gate*: HALT. Present `docs/specs/[NNN]-[name]/product-requirements.md` (and all split parts if present). Use `AskUserQuestion` tool for approval.
 

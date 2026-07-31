@@ -66,7 +66,7 @@ The pipeline is deliberately slow and interrogative at the start. That is the
 design, not a malfunction.
 
 **1. It will ask you questions before writing anything.**
-Stage 1 is forbidden from producing a generic PRD. `prd-generator` will ask about
+Stage 1 is forbidden from producing a generic PRD. `prd-generator-split` will ask about
 personas, edge cases, failure modes, acceptance criteria — and crucially about
 **scope**: `backend`, `frontend`, or `fullstack`. That answer is a hard switch
 that decides which sub-stages exist for the rest of the run. Getting it wrong
@@ -127,7 +127,7 @@ hard switch — only the matching sub-stages run.
 
 | Stage | Skill | Produces |
 |---|---|---|
-| 1 Requirement Analysis | `prd-generator` | `product-requirements.md`, `traceability.md` |
+| 1 Requirement Analysis | `prd-generator-split` | `product-requirements.md`, `traceability.md` |
 | 2 PRD Review | `prd-reviewing` | `prd-review.md` |
 | 3a HLD Backend | `backend-hld-architect` | `hld-backend.md`, `tech-stack.md` |
 | 3b HLD Frontend | `frontend-hld-designer` | `hld-frontend.md`, `tech-stack.md` |
