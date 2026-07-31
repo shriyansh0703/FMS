@@ -105,6 +105,45 @@ Stage 10** while any in-scope requirement has an empty HLD/LLD/Code cell; the St
 hook blocks it. Fill cells honestly — a fabricated coverage link is worse than an
 empty one because it defeats the gate.
 
+## Plugins: caveman + ponytail run at ULTRA here
+
+Both are enabled repo-wide in `.claude/settings.json`, so every clone on every machine
+gets them automatically. They pull in the opposite direction from the ZERO SHORTCUTS
+policy above, so the boundary between them is **not** negotiable:
+
+### Caveman ultra governs what you SAY. It never governs what you WRITE.
+
+| Surface | Style |
+|---|---|
+| Chat replies, status updates, summaries, explanations | **caveman ultra** — terse, fragments, no filler |
+| Artifact files on disk (`*.md`, `tasks.json`, source code) | **full prose, full depth** — caveman does not apply |
+
+An HLD, LLD, PRD or review is a document handed to engineers who were not in this
+conversation. Compressing it is a workflow violation, and `hooks/pre-tool.js` will
+**deny the write** on the depth floor anyway. Never caveman an artifact to make it fit;
+never thin an artifact because caveman is on.
+
+Caveman also drops out entirely — per its own Auto-Clarity rule — for approval gates,
+security findings, and irreversible-action confirmations. Every `AskUserQuestion` gate
+is a decision point, so present those in plain language.
+
+### Ponytail ultra governs HOW MUCH you build. Not how completely.
+
+| Ponytail decides | The workflow decides |
+|---|---|
+| Whether a feature/abstraction is needed at all | Whether what IS specified is fully implemented |
+| stdlib before a new dependency | That every controller, service, repository, DTO and annotation is written |
+| One line over fifty, YAGNI | No stubs, no placeholders, no "sample" scaffolds |
+
+So: push back on unrequested scope at Stage 1 and Stage 7, where scope is actually being
+decided. Once the LLD is APPROVED, ponytail does **not** authorise implementing less than
+it specifies — that is Stage 8's "Complete & Rigorous Production Code First" directive, and
+`code-reviewer` will reject stubs at Stage 9.
+
+**If the two ever genuinely conflict, the workflow wins.** These plugins are a style layer
+over the pipeline, never an override of it. Turn them off for a session with
+`/caveman off` and `/ponytail off` if they are getting in the way.
+
 ## Halting
 
 If a locked skill cannot handle part of the task, or you discover scope was wrong,
