@@ -1,90 +1,178 @@
-# Enterprise SDLC Architecture & Guide
+# The `.ai/` directory
 
-Welcome to the `.ai/` directory! This folder powers an autonomous, AI-driven, 7-Stage Software Development Life Cycle (SDLC). It uses the **Google Antigravity** orchestration system to route requests through specialized architect skills, ensuring that every feature goes from raw requirement to production-ready code seamlessly.
+Supporting files for the locked **10-stage PRD→Production pipeline** that runs under
+**Claude Code**.
+
+> **Runtime note.** This pipeline was originally built for Google Antigravity and has
+> been ported to Claude Code. Antigravity is no longer the runtime. `.agents/hooks.json`
+> remains on disk but is inert — Claude Code never reads it. The full audit of that port
+> is in [CLAUDE-CODE-PORT-CHECKLIST.md](CLAUDE-CODE-PORT-CHECKLIST.md).
+
+**Authoritative spec:** [`workflows/prd-to-prod.md`](workflows/prd-to-prod.md).
+Everything below is orientation; where the two disagree, the workflow file wins.
 
 ---
 
-## 1. The 7-Stage Workflow Architecture
+## 1. What lives where
 
-The engine is built on a Directed Acyclic Graph (DAG) that enforces rigorous requirements analysis and architectural design *before* code is generated.
+Claude Code discovers skills, commands and hooks from `.claude/` and the repo root —
+**not** from `.ai/`. This directory holds state, artifacts, docs, and disabled material.
+
+| Path | Purpose | Live? |
+|---|---|---|
+| `.ai/workflows/prd-to-prod.md` | The authoritative pipeline spec | **yes** — read by the agent |
+| `.ai/state/workflow-state.json` | Current stage, scope, approvals, checksums | **yes** — gitignored, per-developer |
+| `.ai/artifacts/` | Generated stage artifacts | **yes** |
+| `.ai/examples/` | Archived reference run — the quality bar | reference |
+| `.ai/dashboard/` | Zero-dependency live dashboard | **yes** |
+| `.ai/skills/` | **Disabled** skills, retained for reference | no — not discoverable |
+| `.ai/stages/*/SKILL.md` | Legacy stage skills from the 7-stage era | no — not discoverable |
+| `../.claude/skills/` | The **13 locked skills** | **yes** — the only discoverable ones |
+| `../.claude/commands/` | `/prd-to-prod`, `/workflow-status`, `/workflow-reset` | **yes** |
+| `../hooks/` | The three enforcement hooks + preflight | **yes** |
+
+The skill lock is structural: an unlisted skill isn't merely forbidden, it is invisible
+to the runtime, because Claude Code only scans `.claude/skills/`.
+
+---
+
+## 2. The 10-stage pipeline
+
+Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and decides which
+sub-stages exist at all.
 
 ```mermaid
 graph TD
     classDef stage fill:#faf8f1,stroke:#17180f,stroke-width:2px,color:#17180f
     classDef artifact fill:#7fe04c,stroke:#163b12,stroke-width:1px,color:#163b12
+    classDef opt fill:#e8e6dd,stroke:#17180f,stroke-width:1px,color:#17180f,stroke-dasharray: 4 3
 
-    S1[Stage 1: Requirement Analysis]:::stage
-    S2[Stage 2: High-Level Design]:::stage
-    S3[Stage 3: Low-Level Design]:::stage
-    S4[Stage 4: Planning]:::stage
-    S5[Stage 5: Implementation]:::stage
-    S6[Stage 6: Review]:::stage
-    S7[Stage 7: QA Testing]:::stage
+    User((User request)) --> S1
+    S1[1 Requirement Analysis]:::stage --> A1(product-requirements.md):::artifact
+    A1 --> S2[2 PRD Review]:::stage --> A2(prd-review.md):::artifact
 
-    A1(requirements.md):::artifact
-    A2(hld.md & tech-stack.md):::artifact
-    A3(lld.md, apis.md, db.md):::artifact
-    A4(tasks.json & planning.md):::artifact
-    A5(Source Code):::artifact
-    A6(review.md):::artifact
-    A7(test-report.md):::artifact
+    A2 --> S3a[3a HLD Backend]:::stage
+    A2 --> S3b[3b HLD Frontend]:::opt
+    S3a --> A3a(hld-backend.md + tech-stack.md):::artifact
+    S3b --> A3b(hld-frontend.md + tech-stack.md):::artifact
 
-    User((User Request)) --> S1
-    S1 --> A1 --> S2
-    S2 --> A2 --> S3
-    S3 --> A3 --> S4
-    S4 --> A4 --> S5
-    S5 --> A5 --> S6
-    S6 --> A6 --> S7
-    S7 --> A7
+    A3a --> S4[4 HLD Review]:::stage
+    A3b --> S4
+    S4 --> A4(hld-review.md):::artifact
 
-    %% Feedback Loops
-    S5 -.->|Design Flaw| S3
-    S6 -.->|Bugs Found| S5
+    A4 --> S5a[5a LLD Backend]:::stage
+    A4 --> S5b[5b LLD Frontend]:::opt
+    S5a --> A5a(lld-backend.md):::artifact
+    S5b --> A5b(lld-frontend.md):::artifact
+
+    A5a --> S5c[5c LLD Consistency]:::opt
+    A5b --> S5c
+    S5c --> A5c(lld.md):::artifact
+
+    A5a --> S6[6 LLD Review]:::stage
+    A5b --> S6
+    A5c --> S6
+    S6 --> A6(lld-review.md):::artifact
+
+    A6 --> S7[7 Planning]:::stage --> A7(planning.md + tasks.json):::artifact
+    A7 --> S8[8 Implementation]:::stage --> A8(Source code):::artifact
+    A8 --> S9[9 Code and Arch Review]:::stage --> A9(review.md):::artifact
+    A9 --> S10[10 QA and Browser]:::stage --> A10(test-report.md + browser-report.md):::artifact
+
+    S6 -.->|CHANGES_REQUESTED| S5a
+    S9 -.->|CHANGES_REQUESTED| S8
 ```
 
----
-
-## 2. Skill Directory
-
-This workflow leverages specialized skills located in the `.ai/skills/` directory. Depending on the stage, the agent dynamically swaps into these roles:
-
-### Core Master Skills
-- **`prd-generator-split`**: (Stage 1) Systematically reviews ambiguous inputs and generates a rigorous, engineering-ready Product Requirements Document (PRD).
-- **`fullstack-fintech-architect`**: (Stages 2, 3, 5) A master skill combining fintech domain knowledge, frontend OS (Next.js/React), backend architectures (Rust/Go), and rigorous test protocols.
-
-### Architectural & Review Skills
-- **`backend-hld-architect` / `frontend-hld-designer`**: Maps out the system context, APIs, and micro-services.
-- **`backend-lld-design` / `frontend-lld-designer`**: Designs precise component states, Redux/Zustand flows, and database schemas.
-- **`hld-reviewer` / `lld-reviewer` / `frontend-lld-review`**: Independent "red team" skills that challenge and validate the architectural plans before any code is generated.
+Dashed nodes are scope-gated. `5c` runs only for `fullstack`.
 
 ---
 
-## 3. Extreme Agility & Iteration
+## 3. Skill directory
 
-This workflow is **fully flexible**. You do not have to start at Stage 1. 
+All 13 live in `../.claude/skills/`. These are the **only** skills this workflow may invoke.
 
-**Entry Point Resolution:**
-Tell the AI: *"I already have a PRD, start from HLD"* and the AI will verify the required inputs and immediately jump to Stage 2.
+| Stage | Skill |
+|---|---|
+| 1 Requirement Analysis | `prd-generator-split` |
+| 2 PRD Review | `prd-reviewing` |
+| 3a HLD Backend | `backend-hld-architect` |
+| 3b HLD Frontend | `frontend-hld-designer` |
+| 4 HLD Review | `hld-reviewer` |
+| 5a LLD Backend | `backend-lld-architect` |
+| 5b LLD Frontend | `frontend-lld-designer` |
+| 5c LLD Consistency | *(orchestrator — no skill)* |
+| 6 LLD Review | `lld-reviewer` and/or `frontend-lld-review` |
+| 7 Planning | `edited-plan-skill` |
+| 8 Implementation | `trading-platform-coding` |
+| 9 Code & Arch Review | `code-reviewer` |
+| 10 QA & Browser | `full-stack-test-suite` |
 
-**Iterative Feedback Loops:**
-If you are in Stage 5 (Implementation) and discover a technical roadblock, the AI is instructed to halt and jump backward to Stage 3 (LLD) to redesign the schema before proceeding. It does this by appending/patching existing state rather than destroying it.
+**Disabled, retained for reference only** — these are *not* discoverable and must never
+be invoked: `.ai/skills/prd-generator` (superseded by `prd-generator-split`; its SKILL.md
+references two support files it cannot resolve, which is why it was replaced),
+`.ai/skills/requirements-analysis-2`, and the eight `.ai/stages/*/SKILL.md` files.
 
 ---
 
-## 4. How to Replicate This Workflow
+## 4. Entry points and iteration
 
-This highly structured AI workflow can be easily ported to any other computer running Google Antigravity. 
+Start or resume with **`/prd-to-prod <feature>`**. State is read from
+`state/workflow-state.json`, so a bare `/prd-to-prod` resumes wherever you left off.
+Check position any time with `/workflow-status`; reset with `/workflow-reset` (which
+archives rather than deletes).
 
-### Method A: Project-Specific (Easiest)
-Because everything lives in this `.ai/` directory, it is fully tied to the codebase. 
-1. `git commit -am "Add enterprise AI workflow"`
-2. Clone the repository on a new machine.
-3. Antigravity will automatically detect `.ai/workflows/prd-to-prod.md` and load the entire pipeline!
+**Gates are hard.** Every stage halts and calls `AskUserQuestion` with
+APPROVE / ITERATE / REJECT / JUMP. An artifact already on disk is never approval — it
+must be approved in the current session.
 
-### Method B: Global Installation
-If you want to use this pipeline across *all* projects on a new computer:
-1. Create a global plugin folder: `~/.gemini/config/plugins/enterprise-sdlc/`
-2. Copy `.ai/skills/` into `~/.gemini/config/plugins/enterprise-sdlc/skills/`
-3. Copy `.ai/workflows/` into `~/.gemini/config/plugins/enterprise-sdlc/workflows/`
-4. Antigravity will now load this master workflow regardless of which project folder you are working in.
+**Entry point.** Do not start at a stage other than 1 unless you name one explicitly.
+Unlike the older 7-stage version, guessing an entry point is a workflow violation.
+
+**Jump-backs** require explicit user confirmation. A `CHANGES_REQUESTED` verdict is
+hard-blocking and cannot be worked around by proceeding — `hooks/pre-tool.js` denies the
+downstream write.
+
+---
+
+## 5. Enforcement
+
+Rules are executed, not merely documented. Three hooks in `../hooks/`, registered in
+`../.claude/settings.json`:
+
+- **`pre-tool.js`** denies writes that fall below depth floors, miss required sections,
+  contain `TBD`/placeholders in a design doc, violate artifact ownership, or breach the
+  verdict gate.
+- **`post-tool.js`** records checksums and versions, cascades staleness (scope-aware),
+  validates split-PRD completeness, and reports owed traceability cells.
+- **`stop.js`** blocks the turn from ending on missing in-scope artifacts, incomplete PRD
+  parts, stale artifacts, an unapproved stage, or Stage 9 traceability gaps.
+- **`session-start.sh`** (POSIX `sh`, so it works even without Node) warns loudly if Node
+  is missing — otherwise the guards would silently not run.
+
+Verify with `node hooks/test/run-tests.js` — 44 assertions, ~5 seconds, no side effects.
+
+---
+
+## 6. Replicating this workflow
+
+**Same repo, new machine** — everything needed is committed:
+
+```sh
+git clone -b claude-code https://github.com/Thinq-Money/prd-to-prod.git
+cd prd-to-prod
+node --version || brew install node    # macOS ships no Node
+node hooks/test/run-tests.js           # expect 44 passed
+claude
+```
+
+No `npm install`, no build step — hooks and dashboard use Node built-ins only.
+
+**Into another project** — copy `.claude/skills/`, `.claude/commands/`,
+`.claude/settings.json`, `hooks/`, `.ai/workflows/`, and the root `CLAUDE.md`. The hooks
+resolve their own paths from `__dirname`, so they work from any repo root. `CLAUDE.md` is
+what makes the pipeline the default behaviour — without it the agent has no standing
+instruction to route feature requests through the workflow.
+
+**Globally, across all projects** — put the skills in `~/.claude/skills/` and the rules in
+`~/.claude/CLAUDE.md`. Note this weakens the skill lock: skills in your home directory are
+discoverable in every project, not just this one.
