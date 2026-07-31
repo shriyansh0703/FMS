@@ -43,8 +43,37 @@ Minimum Node 12 (the guards use nothing newer); Node 18+ LTS recommended.
 A `SessionStart` hook checks this for you on every session — written in POSIX
 `sh` precisely so it still runs when Node is absent. If Node is missing you will
 see a loud `*** WORKFLOW GUARDS ARE NOT RUNNING ***` banner rather than silent
-non-enforcement. It also tells you where the pipeline currently stands, so every
-session opens oriented.
+non-enforcement.
+
+### The greeting
+
+Open Claude Code in this repo on any machine and the same hook prints a banner
+with the commands and exactly where the pipeline stands:
+
+```
+──────────────────────────────────────────────────────────────
+  PRD → Production Pipeline
+  Locked 10-stage SDLC · 12 skills · guards enforced at write time
+──────────────────────────────────────────────────────────────
+
+  /prd-to-prod <feature>   start, or resume where you left off
+  /workflow-status         current stage, pending gate, blockers
+  /workflow-reset          back to Stage 1 (archives, never deletes)
+
+  node hooks/test/run-tests.js     prove the guards fire (51 checks)
+  node .ai/dashboard/server.js     live dashboard
+
+  Every stage HALTS for your approval. Artifacts too thin, missing a
+  required section, or containing TBD are denied at write time.
+
+  ▸ Pipeline not started.
+  ▸ Run  /prd-to-prod <feature>  to begin.
+```
+
+Mid-run the last two lines become the live position, e.g.
+`Stage 3 — High-Level Design (Unified System) · system-hld-designer · scope fullstack.`
+followed by `AWAITING YOUR APPROVAL on hld.md`. It fires on startup, resume and
+`/clear` — not on every compaction.
 
 **Requirements:** macOS, Node.js, and Claude Code. Nothing else.
 

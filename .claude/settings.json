@@ -30,7 +30,8 @@
             "command": "sh \"$CLAUDE_PROJECT_DIR/hooks/session-start.sh\"",
             "timeout": 10
           }
-        ]
+        ],
+        "matcher": "startup|resume|clear"
       }
     ],
     "PreToolUse": [
