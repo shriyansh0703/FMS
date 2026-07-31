@@ -162,27 +162,46 @@ Two HIGH findings remain unresolved.
 **Verdict:** CHANGES_REQUESTED
 `;
 
-/** A deep, well-formed backend HLD that should pass every structural check. */
+/**
+ * A deep, well-formed UNIFIED system HLD that should pass every structural check.
+ * Mirrors the section order `system-hld-designer` produces — client, services,
+ * data and infrastructure in one document.
+ */
 function goodHld() {
   const body = [];
-  body.push('# Backend High-Level Design — Test System\n');
-  body.push('## 1. System Context & Boundaries\n');
-  body.push('The service sits behind the API gateway and owns document storage.\n');
-  body.push('```mermaid\nsequenceDiagram\n  Client->>API: POST /documents\n  API->>Store: persist\n  Store-->>API: id\n  API-->>Client: 201\n```\n');
-  body.push('## 2. Component Hierarchy & Module Design\n');
-  body.push('Ingestion, retrieval, linking and audit modules are separated.\n');
-  body.push('## 3. Sequence Diagrams\n');
-  body.push('```mermaid\nsequenceDiagram\n  Client->>API: GET /documents/{id}\n  API->>Store: fetch\n```\n');
-  body.push('## 4. Database Schema Design\n');
-  body.push('Tables: documents, document_links, audit_events.\n');
-  body.push('## 5. API Specification Overview\n');
-  body.push('Seven endpoints, all authenticated by scoped API key.\n');
-  body.push('## 6. Edge Case Handling Strategy\n');
-  body.push('Orphaned records reconcile via a nightly sweep.\n');
-  body.push('## 7. Scalability, Latency & SLA\n');
-  body.push('P95 metadata reads under 500 ms at 200 RPS.\n');
-  // Pad past the 150-line depth floor with real prose.
-  for (let i = 0; i < 150; i++) {
+  body.push('# High-Level Design — Test System\n');
+  body.push('## 1. Overview & Goals\n');
+  body.push('A document service for internal teams. Non-goal: public sharing.\n');
+  body.push('## 2. Requirements\n');
+  body.push('Functional: ingest, retrieve, search. NFR: p99 under 500 ms at 200 RPS.\n');
+  body.push('## 3. Capacity & Workload Estimates\n');
+  body.push('40 GB/year growth, 12:1 read:write, peak 340 RPS.\n');
+  body.push('## 4. High-Level Architecture\n');
+  body.push('```mermaid\ngraph TD\n  Client-->CDN\n  CDN-->API\n  API-->Store\n  API-->Search\n```\n');
+  body.push('## 5. Component Breakdown\n');
+  body.push('Ingestion, retrieval, linking and audit components are separated.\n');
+  body.push('## 6. API Design & Network Perimeter\n');
+  body.push('```mermaid\nsequenceDiagram\n  Client->>API: POST /documents\n  API->>Store: persist\n  Store-->>API: id\n```\n');
+  body.push('## 7. Data Model, Storage & Partitioning\n');
+  body.push('Tables: documents, document_links, audit_events. Partitioned by tenant.\n');
+  body.push('## 8. Client, Rendering & Offline Strategy\n');
+  body.push('SSR shell with client hydration; offline reads from IndexedDB.\n');
+  body.push('## 9. Caching Strategy\n');
+  body.push('Edge cache for binaries, Redis for metadata, 60 s TTL.\n');
+  body.push('## 10. Scaling Strategy\n');
+  body.push('Horizontal API pods on CPU; read replicas for metadata.\n');
+  body.push('## 11. Reliability & Failure Handling\n');
+  body.push('Circuit breakers on Store; orphaned records reconcile nightly.\n');
+  body.push('## 12. Security & Compliance\n');
+  body.push('Scoped API keys, mTLS between services, GDPR erasure cascade.\n');
+  body.push('## 13. Observability\n');
+  body.push('RED metrics per endpoint, traces sampled at 5 percent.\n');
+  body.push('## 14. Technology Stack Summary\n');
+  body.push('| Component | Choice | Rejected | Why |\n|---|---|---|---|\n| Store | Postgres | Dynamo | relational queries |\n');
+  body.push('## 15. Risk Analysis\n');
+  body.push('Hot-tenant skew; mitigated by per-tenant rate limits.\n');
+  // Pad past the 200-line depth floor with real prose.
+  for (let i = 0; i < 200; i++) {
     body.push(`Design note ${i + 1}: constraint traced to REQ-${String((i % 10) + 1).padStart(3, '0')}.`);
   }
   return body.join('\n');
@@ -191,7 +210,7 @@ function goodHld() {
 /** Same document, but with a TBD placeholder injected. */
 function hldWithPlaceholder() {
   return goodHld().replace(
-    'Tables: documents, document_links, audit_events.',
+    'Tables: documents, document_links, audit_events. Partitioned by tenant.',
     'Tables: TBD — to be decided during LLD.'
   );
 }
@@ -256,11 +275,11 @@ function testOwnershipGate() {
   setState({ currentStage: 'requirement', scope: 'backend', workflowStatus: 'in_progress' });
 
   const r = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: goodHld(),
   }));
 
-  check('Stage 1 writing the Stage 3a artifact is DENIED', decisionOf(r) === 'deny',
+  check('Stage 1 writing the Stage 3 artifact is DENIED', decisionOf(r) === 'deny',
     `got ${decisionOf(r)}`);
   check('Denial names the ownership violation', /Ownership/i.test(reasonOf(r)),
     `reason: ${reasonOf(r).slice(0, 200)}`);
@@ -269,11 +288,11 @@ function testOwnershipGate() {
 function testVerdictGate() {
   console.log('\n\x1b[1mVerdict gate — Rule #6 is hard-blocking\x1b[0m');
 
-  setState({ currentStage: 'hld_backend', scope: 'backend', workflowStatus: 'in_progress' });
+  setState({ currentStage: 'hld', scope: 'backend', workflowStatus: 'in_progress' });
 
   // No gating review on disk at all.
   const r0 = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: goodHld(),
   }));
   check('HLD write DENIED when prd-review.md is absent', decisionOf(r0) === 'deny',
@@ -282,7 +301,7 @@ function testVerdictGate() {
   // Gating review exists but says CHANGES_REQUESTED.
   writeFixture('.ai/artifacts/prd-review.md', REJECTED_PRD_REVIEW);
   const r1 = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: goodHld(),
   }));
   check('HLD write DENIED when prd-review is CHANGES_REQUESTED', decisionOf(r1) === 'deny',
@@ -293,7 +312,7 @@ function testVerdictGate() {
   // Gating review now APPROVED — the same write should pass.
   fs.writeFileSync(path.join(ARTIFACTS, 'prd-review.md'), APPROVED_PRD_REVIEW);
   const r2 = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: goodHld(),
   }));
   check('HLD write ALLOWED once prd-review is APPROVED', decisionOf(r2) === 'allow',
@@ -303,12 +322,12 @@ function testVerdictGate() {
 function testDepthAndPlaceholders() {
   console.log('\n\x1b[1mZERO-SHORTCUTS gate — depth, sections, placeholders, diagrams\x1b[0m');
 
-  setState({ currentStage: 'hld_backend', scope: 'backend', workflowStatus: 'in_progress' });
+  setState({ currentStage: 'hld', scope: 'backend', workflowStatus: 'in_progress' });
   fs.writeFileSync(path.join(ARTIFACTS, 'prd-review.md'), APPROVED_PRD_REVIEW);
 
   // Shallow artifact.
   const shallow = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: '# HLD\n\n## Components\n\nWe will use microservices.\n',
   }));
   check('Shallow HLD is DENIED', decisionOf(shallow) === 'deny', `got ${decisionOf(shallow)}`);
@@ -319,7 +338,7 @@ function testDepthAndPlaceholders() {
 
   // Placeholder injected into an otherwise good artifact.
   const placeheld = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: hldWithPlaceholder(),
   }));
   check('HLD containing "TBD" is DENIED', decisionOf(placeheld) === 'deny',
@@ -329,7 +348,7 @@ function testDepthAndPlaceholders() {
 
   // Missing diagram.
   const noDiagram = runHook('pre-tool.js', preToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: goodHld().replace(/```mermaid[\s\S]*?```/g, 'See attached.'),
   }));
   check('HLD without a diagram is DENIED', decisionOf(noDiagram) === 'deny',
@@ -348,12 +367,36 @@ function testVerdictFormatEnforcement() {
   check('Review with no verdict line is DENIED', decisionOf(noVerdict) === 'deny',
     `got ${decisionOf(noVerdict)}`);
 
+  // "Ready with Conditions" is the wording hld-reviewer, lld-reviewer and
+  // frontend-lld-review actually emit. It is accepted via VERDICT_ALIASES —
+  // denying it would block the pipeline rather than guard it.
+  const aliasVerdict = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(ARTIFACTS, 'prd-review.md'),
+    content: '# PRD Review\n\n## Summary\n\n' + 'Detail line.\n'.repeat(45) +
+             '\n## Findings\n\nTwo majors.\n\n## Final Verdict\n\n**Verdict:** `Ready with Conditions`\n',
+  }));
+  check('Reviewer wording "Ready with Conditions" is ACCEPTED via alias',
+    decisionOf(aliasVerdict) === 'allow',
+    `got ${decisionOf(aliasVerdict)} — ${reasonOf(aliasVerdict).slice(0, 200)}`);
+
+  // The bullet + score form the new hld-reviewer template emits.
+  const scoredVerdict = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(ARTIFACTS, 'prd-review.md'),
+    content: '# PRD Review\n\n## Summary\n\n' + 'Detail line.\n'.repeat(45) +
+             '\n## Findings\n\nNone.\n\n## 1. Verdict\n' +
+             '* **Status:** Ready for Implementation — **Score: 8.5/10**\n',
+  }));
+  check('Scored bullet form "* **Status:** Ready for Implementation" is ACCEPTED',
+    decisionOf(scoredVerdict) === 'allow',
+    `got ${decisionOf(scoredVerdict)} — ${reasonOf(scoredVerdict).slice(0, 200)}`);
+
+  // Something genuinely unrecognised must still be rejected.
   const badVerdict = runHook('pre-tool.js', preToolPayload('Write', {
     file_path: path.join(ARTIFACTS, 'prd-review.md'),
     content: '# PRD Review\n\n## Summary\n\n' + 'Detail line.\n'.repeat(45) +
-             '\n## Final Verdict\n\n**Verdict:** `Ready with Conditions`\n',
+             '\n## Findings\n\nSome.\n\n## Final Verdict\n\n**Verdict:** `Looks fine to me`\n',
   }));
-  check('Non-canonical verdict ("Ready with Conditions") is DENIED',
+  check('Unrecognised verdict ("Looks fine to me") is DENIED',
     decisionOf(badVerdict) === 'deny', `got ${decisionOf(badVerdict)}`);
 
   const goodVerdict = runHook('pre-tool.js', preToolPayload('Write', {
@@ -368,24 +411,24 @@ function testVerdictFormatEnforcement() {
 function testEditFragmentHandling() {
   console.log('\n\x1b[1mEdit handling — fragments must not cause false denials\x1b[0m');
 
-  setState({ currentStage: 'hld_backend', scope: 'backend', workflowStatus: 'in_progress' });
+  setState({ currentStage: 'hld', scope: 'backend', workflowStatus: 'in_progress' });
   fs.writeFileSync(path.join(ARTIFACTS, 'prd-review.md'), APPROVED_PRD_REVIEW);
-  writeFixture('.ai/artifacts/hld-backend.md', goodHld());
+  writeFixture('.ai/artifacts/hld.md', goodHld());
 
   // A tiny edit to a valid document. The fragment alone would fail every
   // structural check; reconstructing the full file must not.
   const r = runHook('pre-tool.js', preToolPayload('Edit', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
-    old_string: 'P95 metadata reads under 500 ms at 200 RPS.',
-    new_string: 'P95 metadata reads under 400 ms at 250 RPS.',
+    file_path: path.join(ARTIFACTS, 'hld.md'),
+    old_string: 'Edge cache for binaries, Redis for metadata, 60 s TTL.',
+    new_string: 'Edge cache for binaries, Redis for metadata, 90 s TTL.',
   }));
   check('Small Edit to a valid artifact is ALLOWED', decisionOf(r) === 'allow',
     `got ${decisionOf(r)} — ${reasonOf(r).slice(0, 300)}`);
 
   // An edit that introduces a placeholder must still be caught.
   const bad = runHook('pre-tool.js', preToolPayload('Edit', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
-    old_string: 'Tables: documents, document_links, audit_events.',
+    file_path: path.join(ARTIFACTS, 'hld.md'),
+    old_string: 'Tables: documents, document_links, audit_events. Partitioned by tenant.',
     new_string: 'Tables: TBD.',
   }));
   check('Edit that introduces "TBD" is DENIED', decisionOf(bad) === 'deny',
@@ -397,7 +440,7 @@ function testStopHook() {
 
   // Loop guard takes precedence over everything.
   setState({
-    currentStage: 'hld_backend', scope: 'backend', workflowStatus: 'in_progress',
+    currentStage: 'hld', scope: 'backend', workflowStatus: 'in_progress',
     approvedStages: [], waitingForApproval: null,
   });
   const loop = runHook('stop.js', stopPayload(true));
@@ -413,7 +456,7 @@ function testStopHook() {
     `reason: ${(blocked.reason || '').slice(0, 200)}`);
 
   // Waiting on a human gate — stopping is correct.
-  setState({ waitingForApproval: 'hld-backend.md' });
+  setState({ waitingForApproval: 'hld.md' });
   const waiting = runHook('stop.js', stopPayload(false));
   check('Waiting on an approval gate ALLOWS the stop', !waiting.decision,
     `got ${JSON.stringify(waiting)}`);
@@ -452,9 +495,9 @@ function testStaleCascade() {
     `got ${entry && entry.verdict}`);
 
   // Now write a downstream artifact, then change the upstream one.
-  writeFixture('.ai/artifacts/hld-backend.md', goodHld());
+  writeFixture('.ai/artifacts/hld.md', goodHld());
   runHook('post-tool.js', postToolPayload('Write', {
-    file_path: path.join(ARTIFACTS, 'hld-backend.md'),
+    file_path: path.join(ARTIFACTS, 'hld.md'),
     content: goodHld(),
   }));
 
@@ -466,7 +509,7 @@ function testStaleCascade() {
 
   const state2 = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
   check('Upstream change marks downstream STALE',
-    (state2.staleArtifacts || []).includes('hld-backend.md'),
+    (state2.staleArtifacts || []).includes('hld.md'),
     `staleArtifacts: ${JSON.stringify(state2.staleArtifacts)}`);
   check('Staleness is surfaced back to the model',
     /STALE/i.test(JSON.stringify(r2)),
@@ -485,18 +528,24 @@ function testStageKeyNormalisation() {
 
   check('Numeric 4 resolves to hld_review', sk.canonicalKey(4) === 'hld_review',
     `got ${sk.canonicalKey(4)}`);
-  check('Sub-stage "3a" resolves to hld_backend', sk.canonicalKey('3a') === 'hld_backend',
-    `got ${sk.canonicalKey('3a')}`);
-  check('Bare 3 + backend scope resolves to hld_backend',
-    sk.canonicalKey(3, 'backend') === 'hld_backend', `got ${sk.canonicalKey(3, 'backend')}`);
-  check('Bare 3 + frontend scope resolves to hld_frontend',
-    sk.canonicalKey(3, 'frontend') === 'hld_frontend', `got ${sk.canonicalKey(3, 'frontend')}`);
+  check('Bare 3 resolves to the unified hld stage (no longer split)',
+    sk.canonicalKey(3) === 'hld', `got ${sk.canonicalKey(3)}`);
+  check('Bare 3 needs no scope to disambiguate',
+    sk.canonicalKey(3, 'frontend') === 'hld' && sk.canonicalKey(3, 'backend') === 'hld',
+    'stage 3 must resolve identically for every scope');
+  check('Sub-stage "5a" still resolves to lld_backend', sk.canonicalKey('5a') === 'lld_backend',
+    `got ${sk.canonicalKey('5a')}`);
+  check('Bare 5 + frontend scope resolves to lld_frontend',
+    sk.canonicalKey(5, 'frontend') === 'lld_frontend', `got ${sk.canonicalKey(5, 'frontend')}`);
   check('Mixed-type approvedStages match correctly',
-    sk.listIncludesStage([1, 2, '3a'], 'hld_backend') === true,
-    'listIncludesStage([1,2,"3a"], "hld_backend")');
+    sk.listIncludesStage([1, 2, 3], 'hld') === true,
+    'listIncludesStage([1,2,3], "hld")');
   check('Unapproved stage does not falsely match',
-    sk.listIncludesStage([1, 2, '3a'], 'hld_review') === false,
-    'listIncludesStage([1,2,"3a"], "hld_review")');
+    sk.listIncludesStage([1, 2, 3], 'hld_review') === false,
+    'listIncludesStage([1,2,3], "hld_review")');
+  check('Unified HLD is in scope for every scope value',
+    ['backend','frontend','fullstack'].every(sc => sk.inScopeStages(sc).has('hld')),
+    'inScopeStages must always include hld');
 
   const cfg = require(path.join(HOOKS, 'utils', 'config.js'));
   check('STAGE_ARTIFACTS lookup now resolves (was always undefined)',
@@ -513,8 +562,8 @@ function testTraceabilityGapScan() {
 
 | REQ ID | Summary | HLD Coverage | LLD Coverage | Code Coverage | Test Coverage |
 |---|---|---|---|---|---|
-| REQ-001 | Ingestion | hld-backend.md#3 | lld-backend.md#2 | src/Ingest.java | |
-| REQ-002 | Retrieval | hld-backend.md#4 | | | |
+| REQ-001 | Ingestion | hld.md#3 | lld-backend.md#2 | src/Ingest.java | |
+| REQ-002 | Retrieval | hld.md#4 | | | |
 `;
   const gapFile = writeFixture('.ai/artifacts/traceability.md', withGaps);
 

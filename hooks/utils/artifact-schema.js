@@ -35,6 +35,63 @@ const VERDICTS = {
 };
 
 /**
+ * Natural-language verdicts the locked reviewer skills actually emit, mapped onto
+ * the canonical set.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * The gate originally accepted only the three SCREAMING_CASE tokens. But
+ * `hld-reviewer`, `lld-reviewer` and `frontend-lld-review` all emit
+ * "Ready for Implementation / Ready with Conditions / Not Ready", and
+ * hld-reviewer's rubric additionally uses "Approve / Approve with required
+ * changes / Do not build from this yet". Under the strict-only rule, every
+ * hld-review.md and lld-review.md write would have been DENIED as non-canonical
+ * — the gate would have blocked the pipeline instead of guarding it.
+ *
+ * Skills are treated as immutable, so the parser adapts to them rather than the
+ * reverse. Keys are compared uppercased with runs of non-alphanumerics collapsed
+ * to single underscores.
+ */
+const VERDICT_ALIASES = {
+  // -> APPROVED
+  READY_FOR_IMPLEMENTATION: VERDICTS.APPROVED,
+  APPROVE: VERDICTS.APPROVED,
+  PASS: VERDICTS.APPROVED,
+  READY: VERDICTS.APPROVED,
+
+  // -> APPROVED_WITH_CONDITIONS
+  READY_WITH_CONDITIONS: VERDICTS.APPROVED_WITH_CONDITIONS,
+  APPROVE_WITH_REQUIRED_CHANGES: VERDICTS.APPROVED_WITH_CONDITIONS,
+  APPROVED_WITH_REQUIRED_CHANGES: VERDICTS.APPROVED_WITH_CONDITIONS,
+  CONDITIONAL_PASS: VERDICTS.APPROVED_WITH_CONDITIONS,
+
+  // -> CHANGES_REQUESTED
+  NOT_READY: VERDICTS.CHANGES_REQUESTED,
+  DO_NOT_BUILD_FROM_THIS_YET: VERDICTS.CHANGES_REQUESTED,
+  DO_NOT_BUILD: VERDICTS.CHANGES_REQUESTED,
+  FAIL: VERDICTS.CHANGES_REQUESTED,
+  REJECTED: VERDICTS.CHANGES_REQUESTED,
+  BLOCKED: VERDICTS.CHANGES_REQUESTED,
+};
+
+/**
+ * Normalize any verdict string to a canonical value, or null if unrecognised.
+ * @param {string} raw
+ * @returns {string|null}
+ */
+function normalizeVerdict(raw) {
+  if (!raw) return null;
+  const key = String(raw)
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (VERDICTS[key]) return VERDICTS[key];
+  if (VERDICT_ALIASES[key]) return VERDICT_ALIASES[key];
+  return null;
+}
+
+/**
  * High-confidence placeholder markers. Kept deliberately narrow: a false
  * positive here blocks legitimate work, which erodes trust in the gate faster
  * than a missed placeholder does.
@@ -82,6 +139,36 @@ const SCHEMAS = {
     requireVerdict: true,
   },
 
+  // Stage 3 — the UNIFIED system HLD produced by `system-hld-designer`.
+  // Covers client, services, data and infrastructure in one document, so the
+  // floor is higher than either half-HLD it replaced, and the required-section
+  // list spans both the client and server halves. A "unified" design that never
+  // mentions the client layer is exactly the failure this catches.
+  'hld.md': {
+    minLines: 200,
+    enforceNoPlaceholders: true,
+    requiredSections: [
+      ['overview', 'goal'],
+      ['requirement'],
+      ['capacity', 'estimate', 'workload'],
+      ['architecture'],
+      ['component'],
+      ['api'],
+      ['data model', 'data storage', 'schema', 'partitioning'],
+      ['client', 'rendering', 'offline'],
+      ['caching', 'cache'],
+      ['scaling', 'scale'],
+      ['reliability', 'failure'],
+      ['security', 'compliance'],
+      ['observability', 'monitoring'],
+      ['technology stack', 'tech stack', 'stack summary'],
+      ['risk'],
+    ],
+    requireDiagram: true,
+  },
+
+  // Retained so an artifact from before the 3a/3b merge still validates rather
+  // than erroring out. No longer produced by any stage.
   'hld-backend.md': {
     minLines: 150,
     enforceNoPlaceholders: true,
@@ -410,15 +497,35 @@ function validateArtifact(artifactName, content) {
  * @returns {{found: boolean, canonical: boolean, verdict: string|null, raw: string|null}}
  */
 function extractVerdict(content) {
-  const re = /^[^\S\n]*(?:\*\*)?(?:final\s+)?(?:verdict|status)(?:\*\*)?\s*:\s*(?:\*\*)?[`"']?\s*([A-Za-z_ ]+?)\s*[`"']?(?:\*\*)?\s*(?:—|-|$)/gim;
+  // Handles every shape the locked reviewers actually produce:
+  //   **Verdict:** APPROVED
+  //   **Verdict**: `Ready with Conditions`
+  //   * **Status:** Ready for Implementation — **Score: 8.5/10**
+  //   Final Verdict: Not Ready
+  // The capture stops at an em dash, pipe, bracket or quote, so trailing score
+  // and rationale text never leak into the verdict token.
+  const re = new RegExp(
+    '^[^\\S\\n]*' +                       // leading indent
+    '(?:[-*+]\\s+)?' +                    // optional list bullet
+    '(?:\\*\\*|__)?\\s*' +                // optional bold open
+    '(?:final\\s+|overall\\s+)?' +        // "Final Verdict" / "Overall Status"
+    '(?:verdict|status)' +
+    '\\s*(?:\\*\\*|__)?\\s*:\\s*' +       // colon, either side of the bold close
+    '(?:\\*\\*|__)?\\s*' +
+    '[`"\'\\[]?\\s*' +                    // optional quote/backtick/bracket
+    '([^\\n\\r\\u2014|`"\'\\]()*]+)',     // the verdict token itself
+    'gim'
+  );
+
   let match;
   let lastRaw = null;
 
   while ((match = re.exec(content)) !== null) {
     const raw = match[1].trim();
+    if (!raw) continue;
     lastRaw = raw;
-    const normalized = raw.toUpperCase().replace(/\s+/g, '_');
-    if (VERDICTS[normalized]) {
+    const normalized = normalizeVerdict(raw);
+    if (normalized) {
       return { found: true, canonical: true, verdict: normalized, raw };
     }
   }
@@ -432,6 +539,8 @@ function extractVerdict(content) {
 module.exports = {
   SCHEMAS,
   VERDICTS,
+  VERDICT_ALIASES,
+  normalizeVerdict,
   PLACEHOLDER_PATTERNS,
   validateArtifact,
   extractVerdict,

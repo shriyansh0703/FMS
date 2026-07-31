@@ -8,7 +8,7 @@ If a stage's locked skill cannot handle some part of the task, you do NOT reach 
 
 ---
 
-## Scope Declaration (resolved at Stage 1, gates Stages 3 and 5)
+## Scope Declaration (resolved at Stage 1, gates Stage 5)
 
 Every feature entering this pipeline must be classified into exactly one scope before HLD begins, recorded as an explicit field in the PRD index file (`docs/specs/[NNN]-[name]/product-requirements.md`):
 
@@ -18,7 +18,11 @@ Every feature entering this pipeline must be classified into exactly one scope b
 1. If the user states it explicitly ("this is a backend-only change", "frontend only, API already exists", "full feature, both sides") — use that.
 2. `prd-generator-split` MUST ask mandatory clarifying questions to confirm scope (`backend`, `frontend`, or `fullstack`), target behavior, edge cases, and constraints before finalizing `docs/specs/[NNN]-[name]/product-requirements.md`.
 
-This field is a hard switch. Stage 3 (High-Level Design) and Stage 5 (Low-Level Design) each split into a backend sub-stage and a frontend sub-stage below; only the sub-stage(s) matching the declared scope may run. Getting scope wrong wastes an entire sub-stage's work, so do not guess past genuine ambiguity — ask once, then lock it. If a later stage discovers scope was wrong (e.g. Stage 5a discovers the backend change requires a UI change too), HALT and ask the user to explicitly confirm scope should change — never start running frontend skills unilaterally because it seemed necessary.
+This field is a hard switch on **Stage 5 only**. Stage 5 (Low-Level Design) splits into a backend sub-stage and a frontend sub-stage below; only the sub-stage(s) matching the declared scope may run.
+
+**Stage 3 is NOT gated by scope.** The High-Level Design is a single unified document covering client, services, data and infrastructure together, and it runs for every scope. Scope still shapes it — a `backend` feature states its client contract without designing a UI that isn't changing — but it never splits the stage or skips it.
+
+Getting scope wrong wastes an entire sub-stage's work, so do not guess past genuine ambiguity — ask once, then lock it. If a later stage discovers scope was wrong (e.g. Stage 5a discovers the backend change requires a UI change too), HALT and ask the user to explicitly confirm scope should change — never start running frontend skills unilaterally because it seemed necessary.
 
 ---
 
@@ -28,9 +32,8 @@ This field is a hard switch. Stage 3 (High-Level Design) and Stage 5 (Low-Level 
 |---|---|---|---|
 | 1 | Requirement Analysis | always | `prd-generator-split` |
 | 2 | PRD Review | always | `prd-reviewing` |
-| 3a | High-Level Design — Backend | scope = backend or fullstack | `backend-hld-architect` |
-| 3b | High-Level Design — Frontend | scope = frontend or fullstack | `frontend-hld-designer` |
-| 4 | HLD Review | always (reviews whichever of 3a/3b ran) | `hld-reviewer` |
+| 3 | High-Level Design — Unified System | always | `system-hld-designer` |
+| 4 | HLD Review | always | `hld-reviewer` |
 | 5a | Low-Level Design — Backend | scope = backend or fullstack | `backend-lld-architect` |
 | 5b | Low-Level Design — Frontend | scope = frontend or fullstack | `frontend-lld-designer` |
 | 5c | LLD Consistency Pass | scope = fullstack only | no skill — orchestrator cross-checks API contract sections between 5a and 5b outputs; not a regeneration |
@@ -43,9 +46,9 @@ This field is a hard switch. Stage 3 (High-Level Design) and Stage 5 (Low-Level 
 
 ### Where the locked skills live
 
-The 13 skills named above are the **only** skills in `.claude/skills/`, which is the sole directory Claude Code discovers project skills from. The lock is therefore structural, not honour-system: an unlisted skill is not merely forbidden, it is **invisible to the runtime** and cannot be invoked.
+The 12 skills named above are the **only** skills in `.claude/skills/`, which is the sole directory Claude Code discovers project skills from. The lock is therefore structural, not honour-system: an unlisted skill is not merely forbidden, it is **invisible to the runtime** and cannot be invoked.
 
-Skill folders that remain in `.ai/skills/` (currently `prd-generator`, `requirements-analysis-2`) and the legacy stage skills under `.ai/stages/*/SKILL.md` are **explicitly disabled for this workflow**. They are retained for reference only. Their presence does not authorize their use here, and Claude Code will not surface them.
+Skill folders that remain in `.ai/skills/` (currently `prd-generator`, `requirements-analysis-2`, `backend-hld-architect`, `frontend-hld-designer`, `hld-reviewer-v1-single-file`) and the legacy stage skills under `.ai/stages/*/SKILL.md` are **explicitly disabled for this workflow**. They are retained for reference only. Their presence does not authorize their use here, and Claude Code will not surface them.
 
 Skill file contents are treated as immutable by this port — the locked skills were relocated byte-for-byte and must not be edited to accommodate tooling. Path and runtime concerns are handled by the hooks (`hooks/utils/config.js` recognises artifacts under `.ai/artifacts/`, `.ai/stages/**` and `docs/specs/**`), never by rewriting a skill.
 
@@ -79,7 +82,7 @@ skill resolves unambiguously.
    - The agent MUST exhaustively analyze, think through, and document every stage without taking shortcuts, using placeholders, summarizing prematurely, or generating partial templates.
    - Speed or quick completion is strictly secondary to completeness and rigorous technical depth.
    - Any attempt to produce "high-level summaries" where detailed specs are required, or "sample code/scaffolds" instead of production-ready implementations, is a direct workflow violation.
-   - This policy applies identically to every sub-stage (3a, 3b, 5a, 5b, 5c) — splitting a stage into sub-stages does not permit shallower output in either half; each sub-stage is held to full depth on its own.
+   - This policy applies identically to every sub-stage (5a, 5b, 5c) — splitting a stage into sub-stages does not permit shallower output in either half; each sub-stage is held to full depth on its own. Stage 3 is a single unified document and is held to the depth of both halves combined, never to the depth of one.
 
 ---
 
@@ -98,7 +101,7 @@ At the completion of EACH AND EVERY gate (especially after generating or reviewi
 
 **ABSOLUTE MANDATORY RULE:** You must literally pop up the interactive UI using `AskUserQuestion`. If the user chooses anything other than APPROVE, you follow their selection. This ensures a strict, click-to-approve gating system for all stages.
 
-This applies individually to 3a, 3b, 5a, and 5b as well — each sub-stage that actually runs gets its own `AskUserQuestion` gate. A fullstack feature does not get a single combined approval covering both backend and frontend design; it gets one gate per sub-stage that ran, plus one for the 5c consistency pass if applicable.
+This applies individually to 5a and 5b as well — each sub-stage that actually runs gets its own `AskUserQuestion` gate. A fullstack feature does not get a single combined approval covering both backend and frontend LLD; it gets one gate per sub-stage that ran, plus one for the 5c consistency pass if applicable. Stage 3 is a single node and therefore has exactly one gate regardless of scope.
 
 ---
 
@@ -108,18 +111,17 @@ This applies individually to 3a, 3b, 5a, and 5b as well — each sub-stage that 
 |---|---|---|
 | 1. Requirement Analysis | — (raw user input) | `docs/specs/[NNN]-[name]/product-requirements.md` (index file, with scope field, and optional feature files in `parts:`), `traceability.md` (initial table) |
 | 2. PRD Review | `docs/specs/[NNN]-[name]/product-requirements.md` (+ any feature files listed in frontmatter `parts:`) | `prd-review.md` |
-| 3a. High-Level Design — Backend | `prd-review.md` (APPROVED), scope includes backend | `hld-backend.md`, `traceability.md` (updated) |
-| 3b. High-Level Design — Frontend | `prd-review.md` (APPROVED), scope includes frontend | `hld-frontend.md`, `traceability.md` (updated) |
-| 4. HLD Review | output of 3a and/or 3b (whichever ran), `tech-stack.md`, `docs/specs/[NNN]-[name]/product-requirements.md` (+ any feature files listed in frontmatter `parts:`) | `hld-review.md` |
+| 3. High-Level Design — Unified System | `prd-review.md` (APPROVED) | `hld.md`, `tech-stack.md`, `traceability.md` (updated) |
+| 4. HLD Review | `hld.md`, `tech-stack.md`, `docs/specs/[NNN]-[name]/product-requirements.md` (+ any feature files listed in frontmatter `parts:`) | `hld-review.md` |
 | 5a. Low-Level Design — Backend | `hld-review.md` (APPROVED), scope includes backend | `lld-backend.md`, `traceability.md` (updated) |
 | 5b. Low-Level Design — Frontend | `hld-review.md` (APPROVED), scope includes frontend | `lld-frontend.md`, `traceability.md` (updated) |
 | 5c. LLD Consistency Pass | 5a and 5b both APPROVED, scope = fullstack | `lld.md` |
-| 6. LLD Review | output of 5a/5b/5c (whichever ran), HLD output (`hld-backend.md` / `hld-frontend.md`, whichever exist per scope) | `lld-review.md` |
+| 6. LLD Review | output of 5a/5b/5c (whichever ran), `hld.md` | `lld-review.md` |
 | 7. Planning | `lld-review.md` (APPROVED) | `planning.md`, `tasks.json` |
 | 8. Implementation | `planning.md` / `tasks.json` (APPROVED) | Source Code, `traceability.md` (updated) |
 | 9. Code & Architecture Review | Source Code, LLD output + `tasks.json` | `review.md` |
 | 10. QA Testing & Browser Validation | `review.md` (APPROVED), `docs/specs/[NNN]-[name]/product-requirements.md` (+ all feature files in `parts:`) acceptance criteria | `test-report.md`, `browser-report.md`, `traceability.md` (updated) |
-| Incremental | Artifact produced in stages 1, 3a/3b, 5a/5b, 8, 10 | `traceability.md` (appended per stage) |
+| Incremental | Artifact produced in stages 1, 3, 5a/5b, 8, 10 | `traceability.md` (appended per stage) |
 
 "APPROVED" means explicitly approved this session via the UI Approval Protocol.
 
@@ -131,12 +133,12 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
 
 | Requirement ID | Requirement Summary | HLD Coverage | LLD Coverage | Code Coverage | Test Coverage |
 |---|---|---|---|---|---|
-| REQ-001 | ... | hld-backend.md#section-X | lld-backend.md#section-Y | src/services/X.ts | test-report.md#REQ-001 |
+| REQ-001 | ... | hld.md#section-X | lld-backend.md#section-Y | src/services/X.ts | test-report.md#REQ-001 |
 
 ### Rules for this artifact:
 - Stage 1 creates the table with Requirement ID + Summary columns populated, other columns empty.
   - **Split PRD Awareness:** When populating Stage 1 Requirement IDs, the orchestrator MUST read the index file (`docs/specs/[NNN]-[name]/product-requirements.md`), check its frontmatter `parts:` list, and source Requirement IDs from the index PLUS every listed feature file (`product-requirements-[feature-name].md`) when split.
-- Each subsequent stage (3a/3b, 5a/5b, 8, 10) fills in ONLY its own column for rows it covers, using its own artifact as the source — it does not re-derive or re-check earlier columns.
+- Each subsequent stage (3, 5a/5b, 8, 10) fills in ONLY its own column for rows it covers, using its own artifact as the source — it does not re-derive or re-check earlier columns.
 - Before Stage 9 hands off to Stage 10, add one check (not a full skill invocation, similar in spirit to the existing 5c Consistency Pass) that scans `traceability.md` for any requirement row with a gap (an empty HLD/LLD/Code column despite the requirement being in scope) and HALTs with that gap listed if found, rather than letting it silently proceed to QA.
 - This is the mechanism that gives you end-to-end "nothing missed" coverage cheaply — one scan of a table, instead of every reviewer re-reading the entire upstream chain from scratch.
 
@@ -158,21 +160,16 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
    - *Parts-Aware Review Requirement*: The reviewer MUST first read the index file (`docs/specs/[NNN]-[name]/product-requirements.md`) and check its frontmatter `parts:` list. If `parts:` is non-empty, the reviewer MUST read the index file PLUS every listed feature file (`product-requirements-[feature-name].md`) as one unified PRD. In addition to the standard review directive, when `parts:` is non-empty, the reviewer MUST run the explicit `VALIDATE.md -> Split-File Consistency` checklist to verify cross-file breadcrumbs, TOC links, and single-source-of-truth non-duplication.
    - *Gate*: HALT. Present `prd-review.md`. Use `AskUserQuestion` tool for approval.
 
-3. **Stage 3a — High-Level Design: Backend** (`hld-backend.md`)
-   - Runs only if `scope` = `backend` or `fullstack`. If `scope` = `frontend`, this sub-stage is skipped entirely — do not run it "just in case."
-   - *Skill*: `backend-hld-architect` only.
-   - *STRICT MANDATORY DIRECTIVE*: Must map complete component hierarchies, system context, sequence diagrams, integration boundaries, and technology stacks for the backend. High-level hand-waving or skipping architectural diagrams is prohibited.
-   - *Gate*: HALT. Present `hld-backend.md` & `tech-stack.md` (backend portion). Use `AskUserQuestion` tool for approval.
-
-4. **Stage 3b — High-Level Design: Frontend** (`hld-frontend.md`)
-   - Runs only if `scope` = `frontend` or `fullstack`. If `scope` = `backend`, this sub-stage is skipped entirely — do not run it "just in case."
-   - *Skill*: `frontend-hld-designer` only.
-   - *STRICT MANDATORY DIRECTIVE*: Must map complete component hierarchies, system context, sequence diagrams, integration boundaries, and technology stacks for the frontend. High-level hand-waving or skipping architectural diagrams is prohibited.
-   - *Gate*: HALT. Present `hld-frontend.md` & `tech-stack.md` (frontend portion). Use `AskUserQuestion` tool for approval.
+3. **Stage 3 — High-Level Design: Unified System** (`hld.md`)
+   - Runs for EVERY scope. There is no backend/frontend split at this stage — one document covers client, services, data and infrastructure together.
+   - *Skill*: `system-hld-designer` only.
+   - *STRICT MANDATORY DIRECTIVE*: Must map complete component hierarchies, system context, sequence diagrams, integration boundaries, capacity estimates, data/privacy lifecycle, and the technology stack — for the whole system. Producing a backend-only or frontend-only design here is a workflow violation: client and server decisions constrain each other and must be made together. High-level hand-waving or skipping architectural diagrams is prohibited.
+   - *Scope note*: `scope` does NOT gate this stage. It still gates Stage 5 (5a/5b/5c) and it still governs which layers the design must go deep on — a `backend` feature still states its client contract, it simply does not design a UI that isn't changing.
+   - *Gate*: HALT. Present `hld.md` & `tech-stack.md`. Use `AskUserQuestion` tool for approval.
 
 5. **Stage 4 — HLD Review** (`hld-review.md`)
    - *Skills*: `hld-reviewer` only.
-   - Reviews whichever of 3a/3b actually ran, per scope. A backend-only run is reviewed on its backend HLD alone; do not flag a missing frontend HLD as a defect if scope was declared backend.
+   - Reviews the single unified `hld.md`. The reviewer assesses every layer the document actually covers; it must not flag an absent UI design as a defect when scope is `backend` and no UI is changing.
    - *STRICT MANDATORY DIRECTIVE*: Rigorously red-team the proposed system architecture for scalability bottlenecks, security gaps, and maintainability concerns.
    - *Parts-Aware Coverage Check*: The reviewer must explicitly check each functional requirement in the PRD maps to something in the HLD, and flag any requirement with no corresponding architectural coverage. To conduct this check, the reviewer MUST read the PRD index file (`docs/specs/[NNN]-[name]/product-requirements.md`), check its frontmatter `parts:` list, and map requirements across the index PLUS every feature file listed in `parts:` when split.
    - *Gate*: HALT. Present `hld-review.md`. Use `AskUserQuestion` tool for approval.
@@ -240,7 +237,7 @@ This workflow is protected by deterministic Claude Code hooks, registered in `.c
 | **PostToolUse** | `Write\|Edit\|MultiEdit\|NotebookEdit` | `hooks/post-tool.js` | Records versions/checksums, cascades staleness (scope-aware), extracts declared `scope` and verdicts, reports owed traceability cells |
 | **Stop** | — | `hooks/stop.js` | Blocks premature termination: missing in-scope artifacts, incomplete PRD `parts:`, stale artifacts, unapproved stage, Stage 9 traceability gaps |
 
-Verify the guards at any time with `node hooks/test/run-tests.js` — 44 assertions run each hook as a real child process against synthetic Claude Code payloads.
+Verify the guards at any time with `node hooks/test/run-tests.js` — 48 assertions run each hook as a real child process against synthetic Claude Code payloads.
 
 ### Enforcement contract
 
@@ -254,7 +251,7 @@ Verify the guards at any time with `node hooks/test/run-tests.js` — 44 asserti
 
 Permitted values: `APPROVED`, `APPROVED_WITH_CONDITIONS`, `CHANGES_REQUESTED`. A review with no verdict, or a non-canonical one (e.g. `Ready with Conditions`), is **denied**. `CHANGES_REQUESTED` is hard-blocking per Rule #6 — the gated downstream artifact cannot be written until the review is re-run.
 
-**Scope awareness.** A skipped sub-stage (e.g. `3b` on a backend-only run) is never flagged as missing or stale, and `stop.js` never blocks waiting for an artifact that scope says should not exist.
+**Scope awareness.** A skipped sub-stage (e.g. `5b` on a backend-only run) is never flagged as missing or stale, and `stop.js` never blocks waiting for an artifact that scope says should not exist.
 
 **Split PRDs.** Hooks parse the index frontmatter `parts:` array and independently verify every listed part file exists and is non-empty; `stop.js` blocks termination and `post-tool.js` flags a completeness error otherwise.
 
@@ -272,7 +269,7 @@ Every artifact automatically maintains: `version`, `createdAt`, `updatedAt`, `st
 
 ## Dependency Cascade
 
-If an upstream artifact changes (e.g., `docs/specs/[NNN]-[name]/product-requirements.md` or any of its feature files in `parts:` is regenerated), all downstream artifacts (`prd-review.md` → `hld.md` → … → `test-report.md`) are automatically marked STALE. Stale artifacts are never deleted — they must be regenerated and re-approved. If the PRD index is regenerated and its `scope` field changes, this cascade also applies retroactively to whichever sub-stages (`3a`/`3b`, `5a`/`5b`) newly become in-scope or newly become out-of-scope — an out-of-scope sub-stage's prior artifact (if one exists from before the scope change) is marked STALE, not deleted, and must not be silently reused if scope later reverts. `traceability.md` updates are cumulative and never deleted, consistent with the existing "stale artifacts are never deleted" rule already in that section.
+If an upstream artifact changes (e.g., `docs/specs/[NNN]-[name]/product-requirements.md` or any of its feature files in `parts:` is regenerated), all downstream artifacts (`prd-review.md` → `hld.md` → … → `test-report.md`) are automatically marked STALE. Stale artifacts are never deleted — they must be regenerated and re-approved. If the PRD index is regenerated and its `scope` field changes, this cascade also applies retroactively to whichever sub-stages (`5a`/`5b`) newly become in-scope or newly become out-of-scope — an out-of-scope sub-stage's prior artifact (if one exists from before the scope change) is marked STALE, not deleted, and must not be silently reused if scope later reverts. `traceability.md` updates are cumulative and never deleted, consistent with the existing "stale artifacts are never deleted" rule already in that section.
 
 ---
 

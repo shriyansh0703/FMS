@@ -19,8 +19,7 @@ const { extractVerdict, VERDICTS } = require('../utils/artifact-schema');
  * Keys are canonical stage keys (see utils/stage-keys.js).
  */
 const GATING_REVIEW = {
-  hld_backend:     'prd-review.md',
-  hld_frontend:    'prd-review.md',
+  hld:             'prd-review.md',
   lld_backend:     'hld-review.md',
   lld_frontend:    'hld-review.md',
   lld_consistency: 'hld-review.md',

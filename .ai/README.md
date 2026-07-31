@@ -27,7 +27,7 @@ Claude Code discovers skills, commands and hooks from `.claude/` and the repo ro
 | `.ai/dashboard/` | Zero-dependency live dashboard | **yes** |
 | `.ai/skills/` | **Disabled** skills, retained for reference | no — not discoverable |
 | `.ai/stages/*/SKILL.md` | Legacy stage skills from the 7-stage era | no — not discoverable |
-| `../.claude/skills/` | The **13 locked skills** | **yes** — the only discoverable ones |
+| `../.claude/skills/` | The **12 locked skills** | **yes** — the only discoverable ones |
 | `../.claude/commands/` | `/prd-to-prod`, `/workflow-status`, `/workflow-reset` | **yes** |
 | `../hooks/` | The three enforcement hooks + preflight | **yes** |
 
@@ -38,8 +38,8 @@ to the runtime, because Claude Code only scans `.claude/skills/`.
 
 ## 2. The 10-stage pipeline
 
-Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and decides which
-sub-stages exist at all.
+Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and decides which **Stage 5**
+sub-stages exist. Stage 3 is one unified design that always runs.
 
 ```mermaid
 graph TD
@@ -51,13 +51,10 @@ graph TD
     S1[1 Requirement Analysis]:::stage --> A1(product-requirements.md):::artifact
     A1 --> S2[2 PRD Review]:::stage --> A2(prd-review.md):::artifact
 
-    A2 --> S3a[3a HLD Backend]:::stage
-    A2 --> S3b[3b HLD Frontend]:::opt
-    S3a --> A3a(hld-backend.md + tech-stack.md):::artifact
-    S3b --> A3b(hld-frontend.md + tech-stack.md):::artifact
+    A2 --> S3[3 HLD Unified System]:::stage
+    S3 --> A3(hld.md + tech-stack.md):::artifact
 
-    A3a --> S4[4 HLD Review]:::stage
-    A3b --> S4
+    A3 --> S4[4 HLD Review]:::stage
     S4 --> A4(hld-review.md):::artifact
 
     A4 --> S5a[5a LLD Backend]:::stage
@@ -89,14 +86,13 @@ Dashed nodes are scope-gated. `5c` runs only for `fullstack`.
 
 ## 3. Skill directory
 
-All 13 live in `../.claude/skills/`. These are the **only** skills this workflow may invoke.
+All 12 live in `../.claude/skills/`. These are the **only** skills this workflow may invoke.
 
 | Stage | Skill |
 |---|---|
 | 1 Requirement Analysis | `prd-generator-split` |
 | 2 PRD Review | `prd-reviewing` |
-| 3a HLD Backend | `backend-hld-architect` |
-| 3b HLD Frontend | `frontend-hld-designer` |
+| 3 HLD — Unified System | `system-hld-designer` |
 | 4 HLD Review | `hld-reviewer` |
 | 5a LLD Backend | `backend-lld-architect` |
 | 5b LLD Frontend | `frontend-lld-designer` |
@@ -108,8 +104,9 @@ All 13 live in `../.claude/skills/`. These are the **only** skills this workflow
 | 10 QA & Browser | `full-stack-test-suite` |
 
 **Disabled, retained for reference only** — these are *not* discoverable and must never
-be invoked: `.ai/skills/prd-generator` (superseded by `prd-generator-split`; its SKILL.md
-references two support files it cannot resolve, which is why it was replaced),
+be invoked: `.ai/skills/prd-generator` (superseded by `prd-generator-split`), `backend-hld-architect`
+and `frontend-hld-designer` (superseded by the unified `system-hld-designer`),
+`hld-reviewer-v1-single-file` (superseded by the 20-file `hld-reviewer`),
 `.ai/skills/requirements-analysis-2`, and the eight `.ai/stages/*/SKILL.md` files.
 
 ---
@@ -149,7 +146,7 @@ Rules are executed, not merely documented. Three hooks in `../hooks/`, registere
 - **`session-start.sh`** (POSIX `sh`, so it works even without Node) warns loudly if Node
   is missing — otherwise the guards would silently not run.
 
-Verify with `node hooks/test/run-tests.js` — 44 assertions, ~5 seconds, no side effects.
+Verify with `node hooks/test/run-tests.js` — 48 assertions, ~5 seconds, no side effects.
 
 ---
 
@@ -161,7 +158,7 @@ Verify with `node hooks/test/run-tests.js` — 44 assertions, ~5 seconds, no sid
 git clone -b claude-code https://github.com/Thinq-Money/prd-to-prod.git
 cd prd-to-prod
 node --version || brew install node    # macOS ships no Node
-node hooks/test/run-tests.js           # expect 44 passed
+node hooks/test/run-tests.js           # expect 48 passed
 claude
 ```
 

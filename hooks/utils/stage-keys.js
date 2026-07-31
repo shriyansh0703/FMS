@@ -18,8 +18,7 @@
 const CANONICAL = [
   { key: 'requirement',     num: 1,  sub: null, label: 'Stage 1 — Requirement Analysis' },
   { key: 'prd_review',      num: 2,  sub: null, label: 'Stage 2 — PRD Review' },
-  { key: 'hld_backend',     num: 3,  sub: '3a', label: 'Stage 3a — High-Level Design (Backend)' },
-  { key: 'hld_frontend',    num: 3,  sub: '3b', label: 'Stage 3b — High-Level Design (Frontend)' },
+  { key: 'hld',             num: 3,  sub: null, label: 'Stage 3 — High-Level Design (Unified System)' },
   { key: 'hld_review',      num: 4,  sub: null, label: 'Stage 4 — HLD Review' },
   { key: 'lld_backend',     num: 5,  sub: '5a', label: 'Stage 5a — Low-Level Design (Backend)' },
   { key: 'lld_frontend',    num: 5,  sub: '5b', label: 'Stage 5b — Low-Level Design (Frontend)' },
@@ -35,10 +34,11 @@ const BY_KEY = Object.fromEntries(CANONICAL.map((s) => [s.key, s]));
 const BY_SUB = Object.fromEntries(CANONICAL.filter((s) => s.sub).map((s) => [s.sub, s]));
 
 /**
- * Stages that a bare number maps to when it is ambiguous (3 and 5 are split).
- * A bare 3 or 5 cannot identify a sub-stage, so callers must consult scope.
+ * Stages a bare number cannot identify on its own. Only stage 5 is split now
+ * (5a/5b/5c); stage 3 was merged into a single unified HLD, so a bare 3 is
+ * unambiguous.
  */
-const AMBIGUOUS_NUMS = new Set([3, 5]);
+const AMBIGUOUS_NUMS = new Set([5]);
 
 /**
  * Collapse any stage identifier to its canonical key.
@@ -62,12 +62,10 @@ function canonicalKey(value, scope) {
   const asNum = typeof value === 'number' ? value : Number(String(value).trim());
   if (Number.isInteger(asNum)) {
     if (AMBIGUOUS_NUMS.has(asNum)) {
-      // Resolve via scope; backend wins for fullstack since 3a/5a run first.
-      const isThree = asNum === 3;
-      if (scope === 'frontend') return isThree ? 'hld_frontend' : 'lld_frontend';
-      if (scope === 'backend' || scope === 'fullstack') {
-        return isThree ? 'hld_backend' : 'lld_backend';
-      }
+      // Stage 5 only. Resolve via scope; backend wins for fullstack since 5a
+      // runs before 5b.
+      if (scope === 'frontend') return 'lld_frontend';
+      if (scope === 'backend' || scope === 'fullstack') return 'lld_backend';
       return null; // genuinely ambiguous without scope — caller must handle
     }
     const match = CANONICAL.find((s) => s.num === asNum && !s.sub);
@@ -153,17 +151,16 @@ function stageOrder(value, scope) {
  * @returns {Set<string>} canonical keys that must run
  */
 function inScopeStages(scope) {
+  // The unified HLD (stage 3) and its review always run, whatever the scope.
   const always = [
-    'requirement', 'prd_review', 'hld_review', 'lld_review',
+    'requirement', 'prd_review', 'hld', 'hld_review', 'lld_review',
     'planning', 'implementation', 'review', 'test',
   ];
   const keys = new Set(always);
   if (scope === 'backend' || scope === 'fullstack') {
-    keys.add('hld_backend');
     keys.add('lld_backend');
   }
   if (scope === 'frontend' || scope === 'fullstack') {
-    keys.add('hld_frontend');
     keys.add('lld_frontend');
   }
   if (scope === 'fullstack') {

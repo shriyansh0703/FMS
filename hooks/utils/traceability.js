@@ -25,7 +25,7 @@ const path = require('path');
  * Matching is case-insensitive substring against the header cell text.
  */
 const COLUMN_STAGES = [
-  { keyword: 'hld coverage',  stages: ['hld_backend', 'hld_frontend'] },
+  { keyword: 'hld coverage',  stages: ['hld'] },
   { keyword: 'lld coverage',  stages: ['lld_backend', 'lld_frontend', 'lld_consistency'] },
   { keyword: 'code coverage', stages: ['implementation'] },
   { keyword: 'test coverage', stages: ['test'] },
@@ -35,6 +35,8 @@ const COLUMN_STAGES = [
  * Which column an artifact is responsible for populating.
  */
 const ARTIFACT_COLUMN = {
+  'hld.md':          'hld coverage',
+  // pre-merge names, kept so an old matrix still maps correctly
   'hld-backend.md':  'hld coverage',
   'hld-frontend.md': 'hld coverage',
   'lld-backend.md':  'lld coverage',

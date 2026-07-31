@@ -29,8 +29,7 @@ file) is ordinary engineering work and does not run through the pipeline.
 |---|---|---|
 | 1 Requirement Analysis | `prd-generator-split` | always |
 | 2 PRD Review | `prd-reviewing` | always |
-| 3a HLD Backend | `backend-hld-architect` | scope ∈ {backend, fullstack} |
-| 3b HLD Frontend | `frontend-hld-designer` | scope ∈ {frontend, fullstack} |
+| 3 HLD — Unified System | `system-hld-designer` | always |
 | 4 HLD Review | `hld-reviewer` | always |
 | 5a LLD Backend | `backend-lld-architect` | scope ∈ {backend, fullstack} |
 | 5b LLD Frontend | `frontend-lld-designer` | scope ∈ {frontend, fullstack} |
@@ -41,7 +40,7 @@ file) is ordinary engineering work and does not run through the pipeline.
 | 9 Code & Arch Review | `code-reviewer` | always |
 | 10 QA & Browser | `full-stack-test-suite` | always |
 
-Only these 13 skills exist in `.claude/skills/`. Anything in `.ai/skills/` is
+Only these 12 skills exist in `.claude/skills/`. Anything in `.ai/skills/` is
 **disabled for this workflow** and is not discoverable by design.
 
 ## Approval gates — use `AskUserQuestion`
@@ -55,8 +54,8 @@ Every stage ends in a HARD GATE. Present the artifact, then call
 - **JUMP** — user names an explicit target stage
 
 `AskUserQuestion` caps at 4 options plus an auto-provided "Other" — CANCEL goes
-through "Other". Each sub-stage that runs (3a, 3b, 5a, 5b, 5c) gets its **own**
-gate; a fullstack feature never gets one combined design approval.
+through "Other". Each sub-stage that runs (5a, 5b, 5c) gets its **own** gate; a fullstack feature never
+gets one combined LLD approval. Stage 3 is one node, so it has exactly one gate.
 
 An artifact existing on disk is **never** approval. It must be presented and
 approved in this session.
@@ -64,7 +63,7 @@ approved in this session.
 ## Where artifacts go
 
 - **PRD** → `docs/specs/[NNN]-[name]/product-requirements.md` (+ any `parts:` files)
-- **Everything else** → `.ai/artifacts/`
+- **Everything else** → `.ai/artifacts/` (the Stage 3 HLD is a single `hld.md`)
 - **Source code** → wherever the LLD specifies
 
 The guards also recognise artifacts under `.ai/stages/**` for backward
@@ -95,6 +94,12 @@ Every review artifact must contain a line exactly like:
 ```
 
 Valid values: `APPROVED`, `APPROVED_WITH_CONDITIONS`, `CHANGES_REQUESTED`.
+
+The reviewers' own wording is normalised automatically, so these are equally valid:
+`Ready for Implementation` / `Approve` → APPROVED · `Ready with Conditions` /
+`Approve with required changes` → APPROVED_WITH_CONDITIONS · `Not Ready` /
+`Do not build from this yet` → CHANGES_REQUESTED.
+
 `CHANGES_REQUESTED` is hard-blocking — downstream writes are denied until resolved.
 
 ### Traceability is a gate, not paperwork
@@ -157,4 +162,4 @@ behavior here, not failure.
 - `/workflow-status` — show the current gate and blockers
 - `/workflow-reset` — reset to Stage 1 (archives existing artifacts)
 - `node .ai/dashboard/server.js` — live dashboard (no dependencies)
-- `sh hooks/test/run-tests.sh` — prove the guards actually fire
+- `node hooks/test/run-tests.js` — prove the guards actually fire

@@ -54,7 +54,7 @@ session opens oriented.
 node hooks/test/run-tests.js
 ```
 
-Expected: `Result: 44 passed, 0 failed`. Each hook runs as a real child process
+Expected: `Result: 48 passed, 0 failed`. Each hook runs as a real child process
 against synthetic Claude Code payloads. If this passes, enforcement is genuinely
 active — not merely documented. Takes about 5 seconds and leaves no trace.
 
@@ -122,15 +122,14 @@ ever deleted.
 
 ## The pipeline
 
-Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and acts as a
-hard switch — only the matching sub-stages run.
+Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and gates **Stage 5
+only**. Stage 3 is a single unified system design that always runs.
 
 | Stage | Skill | Produces |
 |---|---|---|
 | 1 Requirement Analysis | `prd-generator-split` | `product-requirements.md`, `traceability.md` |
 | 2 PRD Review | `prd-reviewing` | `prd-review.md` |
-| 3a HLD Backend | `backend-hld-architect` | `hld-backend.md`, `tech-stack.md` |
-| 3b HLD Frontend | `frontend-hld-designer` | `hld-frontend.md`, `tech-stack.md` |
+| 3 HLD — Unified System | `system-hld-designer` | `hld.md`, `tech-stack.md` |
 | 4 HLD Review | `hld-reviewer` | `hld-review.md` |
 | 5a LLD Backend | `backend-lld-architect` | `lld-backend.md` |
 | 5b LLD Frontend | `frontend-lld-designer` | `lld-frontend.md` |
@@ -150,7 +149,7 @@ Claude Code hooks enforce them at runtime.
 
 ### `hooks/pre-tool.js` — denies bad writes before they land
 
-- **Depth floors.** An HLD under 150 lines is rejected; an LLD under 200. The
+- **Depth floors.** The unified HLD under 200 lines is rejected; an LLD under 200. The
   floors sit far below what a serious artifact needs (see `.ai/examples/` — the
   reference PRD is 686 lines against a floor of 120). They catch laziness; they
   do not define the target.
@@ -186,8 +185,12 @@ Every review artifact must carry a machine-readable verdict line:
 ```
 
 Valid values: `APPROVED`, `APPROVED_WITH_CONDITIONS`, `CHANGES_REQUESTED`.
-Anything else is rejected at write time — this is what makes the hard-blocking
-rule enforceable rather than aspirational.
+
+The reviewers' own wording is accepted too and normalised automatically —
+`Ready for Implementation`, `Ready with Conditions`, `Not Ready`, `Approve`,
+`Approve with required changes`, `Do not build from this yet`. Anything genuinely
+unrecognised is rejected at write time, which is what makes the hard-blocking rule
+enforceable rather than aspirational.
 
 ## Layout
 
@@ -196,7 +199,7 @@ CLAUDE.md                      # auto-loaded; makes the workflow the default beh
 .claude/
   settings.json                # hook registration
   commands/                    # /prd-to-prod, /workflow-status, /workflow-reset
-  skills/                      # the 13 LOCKED skills — the only discoverable ones
+  skills/                      # the 12 LOCKED skills — the only discoverable ones
 .ai/
   workflows/prd-to-prod.md     # authoritative spec
   artifacts/                   # generated stage artifacts

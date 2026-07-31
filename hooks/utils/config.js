@@ -16,8 +16,7 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..');
 const STAGES = [
   'requirement',
   'prd_review',
-  'hld_backend',
-  'hld_frontend',
+  'hld',
   'hld_review',
   'lld_backend',
   'lld_frontend',
@@ -34,8 +33,7 @@ const STAGE_INDEX = Object.fromEntries(STAGES.map((s, i) => [s, i]));
 const STAGE_NAMES = {
   requirement:     'Stage 1 — Requirement Analysis',
   prd_review:      'Stage 2 — PRD Review',
-  hld_backend:     'Stage 3a — High-Level Design (Backend)',
-  hld_frontend:    'Stage 3b — High-Level Design (Frontend)',
+  hld:             'Stage 3 — High-Level Design (Unified System)',
   hld_review:      'Stage 4 — HLD Review',
   lld_backend:     'Stage 5a — Low-Level Design (Backend)',
   lld_frontend:    'Stage 5b — Low-Level Design (Frontend)',
@@ -51,8 +49,7 @@ const STAGE_NAMES = {
 const SKILL_MAP = {
   requirement:     ['prd-generator-split'],
   prd_review:      ['prd-reviewing'],
-  hld_backend:     ['backend-hld-architect'],
-  hld_frontend:    ['frontend-hld-designer'],
+  hld:             ['system-hld-designer'],
   hld_review:      ['hld-reviewer'],
   lld_backend:     ['backend-lld-architect'],
   lld_frontend:    ['frontend-lld-designer'],
@@ -83,8 +80,7 @@ const ARTIFACT_SEARCH_DIRS = [ARTIFACT_DIR, STAGES_DIR, SPECS_DIR];
 const STAGE_ARTIFACTS = {
   requirement:     ['requirements.md'],
   prd_review:      ['prd-review.md'],
-  hld_backend:     ['hld-backend.md', 'tech-stack.md'],
-  hld_frontend:    ['hld-frontend.md', 'tech-stack.md'],
+  hld:             ['hld.md', 'tech-stack.md'],
   hld_review:      ['hld-review.md'],
   lld_backend:     ['lld-backend.md'],
   lld_frontend:    ['lld-frontend.md'],
@@ -100,9 +96,12 @@ const ARTIFACT_OWNER = {
   'requirements.md': 'requirement',
   'product-requirements.md': 'requirement',
   'prd-review.md': 'prd_review',
-  'hld-backend.md': 'hld_backend',
-  'hld-frontend.md': 'hld_frontend',
-  'tech-stack.md': 'hld_backend',
+  'hld.md': 'hld',
+  'tech-stack.md': 'hld',
+  // Pre-merge artifacts. Kept so an old file still resolves to the
+  // unified stage instead of erroring as an unknown artifact.
+  'hld-backend.md': 'hld',
+  'hld-frontend.md': 'hld',
   'hld-review.md': 'hld_review',
   'lld-backend.md': 'lld_backend',
   'lld-frontend.md': 'lld_frontend',
@@ -124,8 +123,7 @@ const ANY_STAGE = '*';
 const DEPENDENCY_CHAIN = [
   'requirements.md',
   'prd-review.md',
-  'hld-backend.md',
-  'hld-frontend.md',
+  'hld.md',
   'tech-stack.md',
   'hld-review.md',
   'lld-backend.md',
@@ -144,8 +142,8 @@ const DEPENDENCY_CHAIN = [
  * marked stale — a skipped sub-stage is not a defect.
  */
 const OUT_OF_SCOPE_ARTIFACTS = {
-  backend:  ['hld-frontend.md', 'lld-frontend.md', 'lld.md'],
-  frontend: ['hld-backend.md', 'lld-backend.md', 'lld.md'],
+  backend:  ['lld-frontend.md', 'lld.md'],
+  frontend: ['lld-backend.md', 'lld.md'],
   fullstack: [],
 };
 
