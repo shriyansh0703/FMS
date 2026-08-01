@@ -1,0 +1,6 @@
+{
+  "name": "prd-to-prod-hooks",
+  "private": true,
+  "type": "commonjs",
+  "//": "Scopes this directory tree back to CommonJS. The hooks and their utils/ and validators/ trees are written with require(), but the repository root sets \"type\": \"module\" because the application is ESM (Node --experimental-strip-types, Vite, ESM imports throughout). Node resolves the module system from the NEAREST package.json walking upward, so this one file restores CommonJS semantics for everything under hooks/ without renaming a file or altering a line of guard logic."
+}

@@ -1,0 +1,6 @@
+{
+  "name": "trade-analyser-dashboard",
+  "private": true,
+  "type": "commonjs",
+  "//": "Scopes this directory to CommonJS. server.js is written with require(), but the repository root declares \"type\": \"module\" because the application is ESM. Node resolves module type from the nearest package.json walking up, so this restores CommonJS here without editing server.js. public/app.js is served to the browser over HTTP and is unaffected by Node's module resolution."
+}
