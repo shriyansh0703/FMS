@@ -9,18 +9,78 @@
  *
  * Run:  node hooks/test/run-tests.js
  *
- * State safety: workflow-state.json is backed up before the run and restored
- * afterwards, and every fixture artifact is removed in a finally block.
+ * SANDBOXED. The entire run happens inside a throwaway copy of hooks/ in the
+ * OS temp directory; the live repository is never written to or read from.
+ *
+ * This was not always so, and the previous design destroyed real work. Tests
+ * wrote fixtures directly onto real artifact paths — `.ai/artifacts/hld.md`,
+ * `prd-review.md`, `traceability.md` — and `cleanupFixtures()` then unlinked
+ * every path it had touched, with no check for whether the file had existed
+ * beforehand. Running the guard suite in a live repo therefore deleted the
+ * artifacts the guards exist to protect. `workflow-state.json` was carefully
+ * backed up and restored; the artifacts beside it were not.
+ *
+ * A sandbox is used rather than a backup-and-restore of each artifact because
+ * the failure mode is silent and total: a restore that is forgotten for one
+ * new fixture path loses a document with no error. Copying the tree makes the
+ * live repo unreachable by construction, so no future test can reintroduce it.
+ *
+ * `hooks/utils/config.js` resolves the workspace root from its own `__dirname`,
+ * so hooks copied into the sandbox resolve every path to the sandbox — no
+ * environment variable or config change is needed to redirect them.
  */
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..', '..');
+const REPO = path.resolve(__dirname, '..', '..');
+
+/**
+ * Throwaway workspace. Created before any test runs and removed in the finally
+ * block of main(), including on failure.
+ */
+// realpathSync is required, not cosmetic. On macOS os.tmpdir() reports
+// /var/folders/... while /var is a symlink to /private/var, so the hooks —
+// which resolve their workspace root from their own __dirname — would compute
+// /private/var/... and every path comparison against this root would fail.
+const ROOT = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'prd-to-prod-guardtest-')));
 const HOOKS = path.join(ROOT, 'hooks');
 const ARTIFACTS = path.join(ROOT, '.ai', 'artifacts');
 const STATE_PATH = path.join(ROOT, '.ai', 'state', 'workflow-state.json');
+
+/**
+ * Copies the hook tree into the sandbox. `hooks/package.json` matters
+ * particularly: it scopes the tree to CommonJS, and without it the copied
+ * hooks inherit the repository's `"type": "module"` and fail to load at all.
+ */
+function buildSandbox() {
+  fs.cpSync(path.join(REPO, 'hooks'), HOOKS, { recursive: true });
+  // Every directory `hooks/utils/config.js` resolves off the workspace root.
+  // A missing one is not inert: the logger throws on an absent hooks/logs, and
+  // a hook that throws is indistinguishable from a hook that decided to allow.
+  for (const dir of [
+    ARTIFACTS,
+    path.dirname(STATE_PATH),
+    path.join(ROOT, '.ai', 'stages'),
+    path.join(ROOT, 'docs', 'specs'),
+    path.join(HOOKS, 'logs'),
+  ]) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  if (!fs.existsSync(path.join(HOOKS, 'package.json'))) {
+    throw new Error(
+      'hooks/package.json is missing from the repository. The sandboxed hooks '
+      + 'will inherit "type": "module" and fail to load. Restore it before running.'
+    );
+  }
+}
+
+function destroySandbox() {
+  try { fs.rmSync(ROOT, { recursive: true, force: true }); } catch { /* best effort */ }
+}
 
 let passed = 0;
 let failed = 0;
@@ -642,12 +702,11 @@ function testTraceabilityGapScan() {
 
 function main() {
   console.log('\x1b[1m\nWorkflow guard verification — Claude Code hook contract\x1b[0m');
-  console.log(`Repo: ${ROOT}\n${'-'.repeat(64)}`);
+  console.log(`Repo:    ${REPO}`);
+  console.log(`Sandbox: ${ROOT}`);
+  console.log(`${'-'.repeat(64)}`);
 
-  // A fresh clone has no state file (gitignored, per-developer). Seed one for
-  // the run and remove it afterwards so the clone is left exactly as found.
-  const stateExisted = fs.existsSync(STATE_PATH);
-  const stateBackup = stateExisted ? fs.readFileSync(STATE_PATH, 'utf8') : null;
+  buildSandbox();
   ensureState();
 
   try {
@@ -664,14 +723,8 @@ function main() {
     testStaleCascade();
     testTraceabilityGapScan();
   } finally {
-    cleanupFixtures();
-    if (stateExisted && stateBackup !== null) {
-      fs.writeFileSync(STATE_PATH, stateBackup);
-    } else {
-      // Fresh clone — leave it exactly as we found it.
-      try { fs.unlinkSync(STATE_PATH); } catch { /* already gone */ }
-      try { fs.unlinkSync(STATE_PATH + '.bak'); } catch { /* none */ }
-    }
+    // No backup or restore is needed: nothing outside the sandbox was touched.
+    destroySandbox();
   }
 
   console.log('\n' + '-'.repeat(64));
@@ -687,7 +740,7 @@ function main() {
   }
 
   console.log('\nAll workflow guards verified against the Claude Code hook contract.');
-  console.log('State restored; fixtures removed.\n');
+  console.log('Sandbox removed. The live repository was never written to.\n');
 }
 
 main();
