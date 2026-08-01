@@ -63,11 +63,37 @@ approved in this session.
 ## Where artifacts go
 
 - **PRD** → `docs/specs/[NNN]-[name]/product-requirements.md` (+ any `parts:` files)
-- **Everything else** → `.ai/artifacts/` (the Stage 3 HLD is a single `hld.md`)
+- **Everything else** → `.ai/artifacts/`
 - **Source code** → wherever the LLD specifies
 
 The guards also recognise artifacts under `.ai/stages/**` for backward
 compatibility, but `.ai/artifacts/` is the canonical target for new work.
+
+### The filenames are fixed — invent one and the gate will not see it
+
+`hooks/utils/config.js` matches artifacts by **exact filename**. A file with a
+sensible-sounding alternative name is not a renamed artifact, it is a missing
+artifact plus an unrecognised file, and the Stop hook will refuse the handoff
+while telling you the real one is absent.
+
+| Stage | Required file(s) in `.ai/artifacts/` |
+|---|---|
+| 2 PRD Review | `prd-review.md` |
+| 3 HLD | `hld.md`, `tech-stack.md` |
+| 4 HLD Review | `hld-review.md` |
+| 5a LLD Backend | `lld-backend.md` |
+| 5b LLD Frontend | `lld-frontend.md` |
+| 5c LLD Consistency | `lld.md` |
+| 6 LLD Review | `lld-review.md` |
+| 7 Planning | `planning.md`, `tasks.json` |
+| 8 Implementation | *(source code only — no artifact)* |
+| 9 Code & Arch Review | `review.md` |
+| 10 QA & Browser | `test-report.md`, `browser-report.md` |
+| every stage | `traceability.md` (appended, never regenerated) |
+
+Stage 10 is **two** documents, not one combined report: the test results and the
+browser validation have different audiences and different failure modes, and
+merging them buries the browser limitations inside a passing test summary.
 
 ## Quality bar — this is the whole point
 
