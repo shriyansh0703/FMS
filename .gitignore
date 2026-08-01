@@ -22,3 +22,14 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Playwright artefacts — regenerated on every run
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Machine-local Claude Code permission grants. Contains commands approved on one
+# developer's machine and must never be published — it is neither portable nor
+# anyone else's business.
+.claude/settings.local.json
