@@ -297,7 +297,8 @@ function artifactCount() {
 const REQUIRED_SKILLS = [
   'prd-generator-split', 'prd-reviewing', 'system-hld-designer', 'hld-reviewer',
   'backend-lld-architect', 'frontend-lld-designer', 'lld-reviewer', 'frontend-lld-review',
-  'edited-plan-skill', 'trading-platform-coding', 'code-reviewer', 'full-stack-test-suite',
+  'edited-plan-skill', 'trading-platform-coding', 'code-reviewer', 'security-review',
+  'full-stack-test-suite',
 ];
 
 function checkSkills() {

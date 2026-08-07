@@ -1,5 +1,5 @@
 ---
-description: Start or resume the locked 10-stage PRD-to-Production pipeline
+description: Start or resume the locked 11-stage PRD-to-Production pipeline
 argument-hint: <feature description, or blank to resume>
 ---
 

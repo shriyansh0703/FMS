@@ -117,7 +117,7 @@ async function main() {
   // Review artifacts: record the parsed verdict so the gate is queryable
   // -----------------------------------------------------------------------
   let recordedVerdict = null;
-  if (/^(prd|hld|lld)-review\.md$|^review\.md$/.test(artifactName)) {
+  if (/^(prd|hld|lld|security)-review\.md$|^review\.md$/.test(artifactName)) {
     try {
       const v = extractVerdict(fs.readFileSync(absolutePath, 'utf8'));
       if (v.found && v.canonical) {

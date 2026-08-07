@@ -1,6 +1,6 @@
 # Project Operating Rules — READ BEFORE ANY ACTION
 
-This repository runs a **locked 10-stage PRD→Production pipeline**. It is not a
+This repository runs a **locked 11-stage PRD→Production pipeline**. It is not a
 general-purpose codebase you improvise in.
 
 ## The one rule that overrides everything
@@ -23,7 +23,7 @@ file) is ordinary engineering work and does not run through the pipeline.
 3. Resume at the recorded stage. **Never** start at a stage other than 1 unless
    the user explicitly names one this session.
 
-## The 10 stages and their locked skills
+## The 11 stages and their locked skills
 
 | Stage | Skill | Runs when |
 |---|---|---|
@@ -39,8 +39,9 @@ file) is ordinary engineering work and does not run through the pipeline.
 | 8 Implementation | `trading-platform-coding` | always |
 | 9 Code & Arch Review | `code-reviewer` | always |
 | 10 QA & Browser | `full-stack-test-suite` | always |
+| 11 Security Review (final gate) | `security-review` | always |
 
-Only these 12 skills exist in `.claude/skills/`. Anything in `.ai/skills/` is
+Only these 13 skills exist in `.claude/skills/`. Anything in `.ai/skills/` is
 **disabled for this workflow** and is not discoverable by design.
 
 ## Approval gates — use `AskUserQuestion`
@@ -89,6 +90,7 @@ while telling you the real one is absent.
 | 8 Implementation | *(source code only — no artifact)* |
 | 9 Code & Arch Review | `review.md` |
 | 10 QA & Browser | `test-report.md`, `browser-report.md` |
+| 11 Security Review | `security-review.md` |
 | every stage | `traceability.md` (appended, never regenerated) |
 
 Stage 10 is **two** documents, not one combined report: the test results and the
@@ -132,7 +134,7 @@ The reviewers' own wording is normalised automatically, so these are equally val
 
 `.ai/artifacts/traceability.md` is one running table, appended to — never
 regenerated. Each stage fills only its own column. **Stage 9 will not hand off to
-Stage 10** while any in-scope requirement has an empty HLD/LLD/Code cell; the Stop
+Stage 10 (QA)** while any in-scope requirement has an empty HLD/LLD/Code cell; the Stop
 hook blocks it. Fill cells honestly — a fabricated coverage link is worse than an
 empty one because it defeats the gate.
 

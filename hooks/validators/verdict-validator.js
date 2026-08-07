@@ -25,6 +25,10 @@ const GATING_REVIEW = {
   lld_consistency: 'hld-review.md',
   planning:        'lld-review.md',
   test:            'review.md',
+  // Stage 11 (Security Review) is the final stage. The stage immediately before
+  // it, QA, produces `test-report.md`, which carries no verdict line — so the
+  // nearest real verdict gating security review is still Stage 9's code review.
+  security_review: 'review.md',
 };
 
 /**

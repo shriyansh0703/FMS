@@ -120,7 +120,7 @@ fi
 # so a right-hand border would drift out of alignment.
 GREETING="──────────────────────────────────────────────────────────────
   PRD → Production Pipeline
-  Locked 10-stage SDLC · ${SKILL_COUNT} skills · guards enforced at write time
+  Locked 11-stage SDLC · ${SKILL_COUNT} skills · guards enforced at write time
 ──────────────────────────────────────────────────────────────
 
   /prd-to-prod <feature>   start, or resume where you left off

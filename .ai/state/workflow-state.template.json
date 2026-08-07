@@ -32,17 +32,7 @@
       "lastModifiedBySkill": null,
       "approvalStatus": "pending"
     },
-    "hld-backend.md": {
-      "version": 0,
-      "createdAt": null,
-      "updatedAt": null,
-      "stage": null,
-      "status": "not_created",
-      "checksum": null,
-      "lastModifiedBySkill": null,
-      "approvalStatus": "pending"
-    },
-    "hld-frontend.md": {
+    "hld.md": {
       "version": 0,
       "createdAt": null,
       "updatedAt": null,
@@ -153,6 +143,16 @@
       "approvalStatus": "pending"
     },
     "browser-report.md": {
+      "version": 0,
+      "createdAt": null,
+      "updatedAt": null,
+      "stage": null,
+      "status": "not_created",
+      "checksum": null,
+      "lastModifiedBySkill": null,
+      "approvalStatus": "pending"
+    },
+    "security-review.md": {
       "version": 0,
       "createdAt": null,
       "updatedAt": null,

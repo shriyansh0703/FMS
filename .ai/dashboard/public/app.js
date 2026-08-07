@@ -11,6 +11,7 @@ const STAGES = [
   { key: 'implementation', label: 'Implementation', short: 'IMPL', icon: '⚙️' },
   { key: 'review',      label: 'Code Review', short: 'REV', icon: '🔍' },
   { key: 'testing',     label: 'QA & Browser', short: 'QA', icon: '🧪' },
+  { key: 'security_review', label: 'Security Review', short: 'SEC', icon: '🛡️' },
 ];
 
 let state = {

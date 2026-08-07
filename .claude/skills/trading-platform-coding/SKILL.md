@@ -1,6 +1,6 @@
 ---
 name: "trading-platform-coding"
-description: "Implement, fix, refactor, scaffold, design API contracts for, or test code in this stock-broking platform: Rust matching-engine paths, Go/Java services, React/Flutter trading interfaces (with strict Figma-driven UI implementation), automated security-reviewed dependency management across package managers, and production-ready zero-config REST/OpenAPI (Swagger) endpoint contracts. Applies trading-specific safety rules, design-first API governance, proportionate planning and testing, mandatory security scanning (SAST, dependency/SCA, secrets/API-exposure) before every completion, and an evidence-based verification report. Do not use for standalone architecture, formal code review, QA/UAT, deployment, monitoring, or unrelated systems."
+description: "Implement, fix, refactor, scaffold, design API contracts for, or test code in this stock-broking platform: Rust matching-engine paths, Go/Java services, React/Flutter trading interfaces (with strict Figma-driven UI implementation), automated security-reviewed dependency management across package managers, and production-ready zero-config REST/OpenAPI (Swagger) endpoint contracts. Applies trading-specific safety rules, design-first API governance, proportionate planning and testing, mandatory OpenAPI/Swagger generation and verification with auto-generated human-readable API documentation for any endpoint change, mandatory security scanning (SAST, dependency/SCA, secrets/API-exposure) with an automatic Critical/High remediation loop before every completion, and an evidence-based verification report. Do not use for standalone architecture, formal code review, QA/UAT, deployment, monitoring, or unrelated systems."
 ---
 
 # Trading Platform — Coding Implementation (Comprehensive)
@@ -53,6 +53,14 @@ Every reference file under `references/` belongs to exactly one of six categorie
       │
       ▼
  ┌─────────────────────────────────────────┐
+ │  OPENAPI GATE — MANDATORY for any        │
+ │  endpoint change (skip only if the task  │
+ │  has no HTTP surface at all)             │
+ │  generate · verify · API documentation   │
+ └─────────────────────────────────────────┘
+      │
+      ▼
+ ┌─────────────────────────────────────────┐
  │  COMPLIANCE & SAFETY  — MANDATORY GATE   │◄──┐
  │  security scan · audit · deploy-safety   │   │  loop back and fix,
  └─────────────────────────────────────────┘   │  re-run the failing
@@ -68,7 +76,7 @@ Every reference file under `references/` belongs to exactly one of six categorie
  Self-Verification + Communication → ## Verification report → handoff to Code Review
 ```
 
-The two bottom boxes are drawn as a loop deliberately: a Compliance & Safety finding or a Testing failure does not flow forward past this point silently. It sends execution back up to Language/Runtime + Client/UI (or Performance & Correctness) to actually fix the root cause, then back down through both mandatory gates again before completion is reported. See "Mandatory Gates" and "Failure loop-back" below for the exact rules governing what counts as passing this loop versus an explicitly user-accepted exception.
+The two bottom boxes are drawn as a loop deliberately: a Compliance & Safety finding or a Testing failure does not flow forward past this point silently. It sends execution back up to Language/Runtime + Client/UI (or Performance & Correctness) to actually fix the root cause, then back down through both mandatory gates again — **and back through the OpenAPI gate too whenever the fix changed an API surface** — before completion is reported. See "Mandatory Gates" and "Failure loop-back" below for the exact rules governing what counts as passing this loop versus an explicitly user-accepted exception.
 
 
 
@@ -180,6 +188,7 @@ This platform has genuinely different rules per domain and per backend language 
 | Any task, before declaring it complete, where the deliverable must be verified free of known bugs | Also `references/testing-verification/comprehensive-testing.md` — the consolidating gate covering E2E, regression, exploratory, non-functional, accessibility, and cross-platform testing on top of the unit/integration coverage from `test-execution.md`/`integration-testing.md` |
 | Both backend and frontend | The relevant backend file(s) first (the wire contract should be settled before the frontend consumes it), then `references/client-ui/frontend.md`, `references/client-ui/figma-design-engine.md`, and `references/client-ui/design-system.md` |
 | Designing, adding, or changing any REST endpoint's request/response contract | Also `references/foundation/api-contract-design.md` — the OpenAPI/Swagger spec is designed and reviewed *before* implementation, and interactive Swagger UI is auto-bootstrapped to serve on `/swagger` or `/docs` zero-config |
+| **Any task that creates, modifies, renames, or removes a backend/API endpoint** (including a changed DTO, parameter, status code, or auth requirement) — *after* the code is written | **Also `references/foundation/openapi-generation-pipeline.md` — MANDATORY for endpoint work, see the Mandatory Gates section below. Covers framework detection, automatic Swagger bootstrapping/installation, spec generation, the nine-point spec validation, documentation-endpoint reachability, the Swagger Verification Report, generated API documentation, and the automatic repair loop. `api-contract-design.md` stays authoritative on what the contract must *contain*; this file governs how it is *generated and verified*.** |
 | Anything on a **confirmed** critical path where the baseline hot-path rules aren't enough | Also `references/performance-correctness/performance-engineering.md` |
 | Any concurrent hand-off or lock-free shared structure (Rust), or any concurrent code generally (Go goroutines, Java `java.util.concurrent`) | Also `references/performance-correctness/concurrency-patterns.md` — required whenever `Mutex`-free concurrent Rust is being written; the concurrency sections of `go-backend.md`/`java-backend.md` cover the equivalent discipline for those languages |
 | Any allocation-strategy decision (pre-allocation sizing, object pools, allocator choice) or unexplained hot-path latency jitter | Also `references/performance-correctness/memory-management.md` (Rust); see the GC-pause-awareness sections of `go-backend.md`/`java-backend.md` for the equivalent concern on those runtimes |
@@ -197,7 +206,7 @@ Infrastructure/deployment work is explicitly **out of scope** for this skill —
 
 ## Mandatory Gates — FORCEFUL SECURITY TESTING & USER REVIEW PAUSE
 
-Two gates apply to every task regardless of tier, and neither is optional to *run*:
+Three gates apply, and none is optional to *run*. The first two apply to every task regardless of tier; the third applies to every task that touches a backend/API endpoint:
 
 - **Forceful Security Scanning Gate (MANDATORY)** (`references/compliance-safety/security-scanning/`) — Automated security testing commands (dependency vulnerability audit e.g. `npm audit`, `cargo audit`, `go vulncheck`, `pip audit`; SAST code scanning; and secrets/exposure scanning) **MUST BE EXECUTED FORCEFULLY** after code implementation and dependency installation.
   - **MANDATORY USER REVIEW PAUSE ON ANY VULNERABILITY**: If ANY security scan or audit surfaces ANY vulnerability (Critical, High, Medium, or Low severity), security risk, or secret exposure:
@@ -207,15 +216,34 @@ Two gates apply to every task regardless of tier, and neither is optional to *ru
     4. **EXPLICITLY PAUSE AND REQUIRE USER REVIEW**: Ask the user to review the findings and choose whether to fix, override with justification, or update dependencies before proceeding.
   - Reporting a task "complete" without running security tests or without obtaining explicit user review for surfaced vulnerabilities is a critical violation of this skill.
 - **Testing** (`references/testing-verification/`) — the tier-appropriate test suite (Section 11's `test-execution.md`/`integration-testing.md`, plus `comprehensive-testing.md` for Standard/Critical tasks) must actually run and pass, or fail with a resolved reason, before completion. **A failing test blocks completion — it does not get silently reported alongside a "done" claim.** See "Failure loop-back" immediately below for what happens when it fails.
+- **OpenAPI Generation & Verification Gate (MANDATORY for any endpoint-touching task)** (`references/foundation/openapi-generation-pipeline.md`) — whenever an endpoint is created, modified, renamed, or removed, the spec is generated with the framework's native mechanism, validated against that file's nine-point checklist, and the documentation endpoint is confirmed reachable; then human-readable API documentation is generated from the verified spec and kept synchronized with it. **A backend endpoint task is never complete until Swagger verification succeeds and the API documentation artifact exists.** A generation/validation failure runs that file's automatic repair loop (root cause → repair config/dependencies/annotations → regenerate → re-verify), escalating to the user after 3 failed attempts. Tasks with no HTTP surface report `N/A — no REST endpoints`; that exemption is for genuinely absent HTTP surface, not for a small endpoint change.
+
+### Security compliance execution loop — Critical/High findings drive fixes, not footnotes
+
+This uses the existing security capability unchanged — `references/compliance-safety/security-scanning/` for the scans and their per-file rules, `references/compliance-safety/security-review.md` for the manual complement. Nothing here replaces or duplicates those; it defines when they re-run.
+
+After security compliance runs, if **any unresolved Critical or High finding** exists (and the user has not explicitly accepted it per the scanning files' "what mandatory actually means" rule), the task does not complete. Instead: determine the root cause, modify the implementation to fix it while preserving functionality, rebuild, re-run the tests, **re-run OpenAPI generation and verification if the fix changed any API surface**, regenerate the API documentation, then re-run security compliance. Repeat until no unresolved Critical or High finding remains. A Medium/Low finding follows the existing user-review-pause rule above rather than this automatic loop. The 3-attempt escalation in "Failure loop-back" below applies here too.
+
+Report the loop's history — not just its final state — using this format alongside the Verification report:
+
+```
+## Security Report
+Total scans run: <count, listing each scan type and command>
+Findings per scan: <scan> — <critical/high/medium/low counts, with file:line for anything above low>
+Fixes applied: <finding → root cause → what changed, per fix>
+Rescans: <how many re-run cycles, and what each one's result was>
+Final status: <PASS — no unresolved critical/high | FAIL — <what remains and why> | PASS WITH USER-ACCEPTED FINDINGS — <which, and the user's stated decision>>
+```
 
 ## Failure loop-back — testing and security findings send you back, not forward
 
-If a mandatory test fails, or a security scan surfaces a finding you're fixing rather than the user accepting: **do not proceed to the next stage or report completion.** Go back to implementation:
+If a mandatory test fails, a security scan surfaces a finding you're fixing rather than the user accepting, **or OpenAPI generation/validation/reachability fails**: **do not proceed to the next stage or report completion.** Go back to implementation:
 1. Diagnose the actual cause — re-read the failing test's output or the scanner's finding detail, don't guess.
 2. Fix at the root (the implementation, not the test — unless the test itself was wrong, which is a distinct, rarer case worth stating explicitly if true).
 3. Re-run the specific check that failed, not just eyeball the fix.
 4. Only once it passes, continue forward from where you left off — this is a loop back to Section 11/Testing or Section 10/Security, not a restart of the entire task from Section 1.
 5. If the same check fails repeatedly (3+ attempts) without a clear cause, that's a signal to stop looping and surface the pattern to the user explicitly — a repeated silent retry loop that never asks for help is its own failure mode.
+6. **Any fix that changes an API surface re-enters the OpenAPI gate.** If the fix — for a failing test, a security finding, or anything else — adds, removes, or changes an endpoint, DTO, parameter, status code, or auth requirement, re-run generation and verification per `references/foundation/openapi-generation-pipeline.md` and regenerate the API documentation before continuing forward. A fix that silently invalidates the spec leaves the documentation lying about the implementation, which is the failure mode this gate exists to prevent.
 
 ## 5. Code Quality
 
@@ -332,6 +360,8 @@ Never report a task complete without having actually checked it:
 | Test suite | 100% of the affected test files pass, zero skipped without justification | `<fill in your actual test command, e.g. cargo test --release>` |
 | Frontend render budget | No dropped frames / jank under realistic tick volume | `<fill in your perf-profiling command>` |
 
+**Persist the three completion reports to disk, not only to chat.** The `## Swagger Verification Report` goes to `.ai/artifacts/swagger-verification.md`, the `## Security Report` to `.ai/artifacts/security-report.md`, and the generated API documentation to the project's docs location (`docs/api/api-documentation.md` by default). In the `prd-to-prod` workflow this skill runs as Stage 8 (Implementation), and `.ai/artifacts/` is that workflow's canonical artifact location — a report written only into the conversation reads as a skipped gate, so treat a missing file, a missing status line, or any status other than PASS as an incomplete task. A task with no HTTP surface still writes `swagger-verification.md`, stating `Validation status: N/A — no REST endpoints` and why; that satisfies the gate and waives the API-documentation requirement, and nothing waives the Security Report.
+
 Use this required report format when declaring a task complete — don't substitute a prose paragraph for it:
 
 ```
@@ -341,8 +371,10 @@ Manually verified: <what you traced by hand, if anything, and how>
 Acceptance thresholds met: <table above, filled in with actual measured values, or "not measured — reason">
 Figma UI Fidelity Status: <"N/A — no UI work" | "Verified strictly against Figma URL: <url>" | "Paused — Figma URL missing/inaccessible">
 Dependency status: <"none installed" | "installed: <packages + exact commands>, scanned: <result>" | "paused for approval: <Dependency Review table generated for Critical/High/Medium CVEs, awaiting user decision>">
-Swagger / OpenAPI status: <"N/A — no REST endpoints" | "Verified live Swagger UI running at /swagger or /docs zero-config">
+Swagger / OpenAPI status: <"N/A — no REST endpoints" | "Verified live Swagger UI running at /swagger or /docs zero-config" — for any endpoint-touching task, attach the full `## Swagger Verification Report` from `references/foundation/openapi-generation-pipeline.md` Step 6, including detected framework, generation command, spec location, endpoint/schema counts, and validation status>
+API documentation status: <"N/A — no REST endpoints" | "generated at <path> from <spec path>, via <tool/format>, regenerated after the final spec change" | "FAIL — <why, and the manual step required>">
 Security scan status: <SAST result + finding summary> | <dependency scan result + finding summary> | <secrets/exposure scan result + finding summary> — any critical/high finding named explicitly, not summarized as a pass/fail count alone
+Security compliance loop: <"no critical/high findings — no loop needed" | attach the full `## Security Report` from the Mandatory Gates section: total scans, findings per scan, fixes applied, rescans, final PASS/FAIL>
 Not verified: <anything you could not check, and why>
 ```
 
@@ -377,8 +409,10 @@ When reporting on completed work:
 4. **If this task adds/changes an HTTP endpoint's contract**: read `references/foundation/api-contract-design.md` and design/review the OpenAPI (Swagger) spec **before** implementing the endpoint — this is mandatory for any new or contract-changing endpoint, not optional polish added afterward.
 5. **Language/Runtime + Client/UI** — Section 4 routing → read the matching domain file(s) (`rust-backend.md`/`go-backend.md`/`java-backend.md`/`frontend.md`). For UI work, also read `references/client-ui/design-system.md` and `references/client-ui/ux-design.md` before writing components.
 6. **Performance & Correctness** (as routed) — apply Sections 11, 5, 6, 9 (Testing, Code Quality, Correctness, Performance) while implementing. Follow `references/testing-verification/integration-testing.md`'s per-file cadence throughout: test each file right after it's generated/edited, don't batch to the end. Load `performance-correctness/` files only where Section 4's routing table actually applies them.
-7. **Compliance & Safety — MANDATORY, every task, no tier exception**: run `references/compliance-safety/security-scanning/sast-code-scanning.md`, `dependency-vulnerability-scanning.md` (scanning every dependency installed per the Tool Usage section), and `secrets-and-exposure-scanning.md`. Also apply `references/compliance-safety/security-review.md` and any routed `durability-and-audit.md`/`deployment-safety.md`. See "Mandatory Gates" above for what "mandatory" permits (run always; a finding can be acknowledged and accepted by the user, never silently omitted).
-8. **Testing & Verification — MANDATORY, every task, no tier exception**: run the tier-appropriate suite — `test-execution.md`/`integration-testing.md` always, plus the applicable `comprehensive-testing.md` rows for Standard/Critical tasks. **If any test or Step 7 scan produces a failure or finding you're fixing (not user-accepting): loop back to step 5/6, fix at the root, re-run the specific check, then return here — do not proceed to completion with a known failure.** See "Failure loop-back" above for the full procedure, including when to stop looping and escalate.
+   **6a. OpenAPI Generation & Verification + API Documentation — MANDATORY whenever this task created, modified, renamed, or removed an endpoint** (skip only when the task has no HTTP surface at all)**:** follow `references/foundation/openapi-generation-pipeline.md` end to end — detect the framework, bootstrap and install Swagger support if absent (scanned per the dependency rule), generate the spec with the framework's native mechanism, run the nine-point validation, verify the documentation endpoint actually responds, emit the **Swagger Verification Report**, then generate the human-readable API documentation from the verified spec. A generation or validation failure runs that file's automatic repair loop rather than proceeding. This step runs **after** implementation and the per-file test cadence of step 6, and **before** the security gate in step 7 — so that step 7 scans the finished, documented API surface, and so a step 7 or step 8 fix that changes an API returns here per "Failure loop-back" rule 6.
+
+7. **Compliance & Safety — MANDATORY, every task, no tier exception**: run `references/compliance-safety/security-scanning/sast-code-scanning.md`, `dependency-vulnerability-scanning.md` (scanning every dependency installed per the Tool Usage section), and `secrets-and-exposure-scanning.md`. Also apply `references/compliance-safety/security-review.md` and any routed `durability-and-audit.md`/`deployment-safety.md`. See "Mandatory Gates" above for what "mandatory" permits (run always; a finding can be acknowledged and accepted by the user, never silently omitted). Any unresolved Critical/High finding enters the **security compliance execution loop** defined in that section — fix at the root, rebuild, retest, re-run step 6a if the fix changed an API, re-scan — and produces the `## Security Report` on completion.
+8. **Testing & Verification — MANDATORY, every task, no tier exception**: run the tier-appropriate suite — `test-execution.md`/`integration-testing.md` always, plus the applicable `comprehensive-testing.md` rows for Standard/Critical tasks. **If any test or Step 7 scan produces a failure or finding you're fixing (not user-accepting): loop back to step 5/6, fix at the root, re-run the specific check, re-run step 6a if the fix changed any API surface, then return here — do not proceed to completion with a known failure.** See "Failure loop-back" above for the full procedure, including when to stop looping and escalate.
 9. Sections 16 & 18 (Self-Verification, Communication) — apply before calling anything done. Run the final gate: `references/testing-verification/validation-checklist.md` — this consolidates every checklist across every category above into one pass/fail pass.
 
 Sections 13-15 (Context Management, Decision Making, Tool Usage) and 17 (Adaptability) aren't a separate phase — they're standing discipline that applies throughout all of the above, not a step completed once and left behind.

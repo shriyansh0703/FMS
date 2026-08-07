@@ -104,7 +104,7 @@ version: "1.0"
 
 ## User Flows
 
-Each flow below must describe both the ideal path AND what happens when things branch or go wrong. Steps are written as user action → system response, in plain language — no UI widget names, no technical mechanisms.
+Each flow below must describe both the ideal path AND what happens when things branch or go wrong. Steps are written as user action → system response, in plain language — no UI widget names, no technical mechanisms. Every flow is written twice, in two complementary forms — a point-by-point breakdown (source of truth for wording) and a Mermaid diagram (source of truth for shape/branching) — and the two must stay consistent with each other.
 
 ### Flow 1: [NEEDS CLARIFICATION: Flow name, e.g. "First-time payment request"]
 - **Persona:** [Which persona runs this flow]
@@ -132,8 +132,24 @@ Each flow below must describe both the ideal path AND what happens when things b
 **Related Edge Cases**
 [Reference relevant items from the Edge Cases section by name]
 
+**Flow Diagram**
+
+Render the same flow above as a Mermaid `flowchart TD`. Every numbered step, branch, and error path in the points above must appear as a node; nothing in the diagram may exist that isn't also in the prose, and vice versa. Use diamond nodes (`{...}`) for decisions/branches, and route error paths to a distinct node rather than a dead end.
+
+```mermaid
+flowchart TD
+    Start([Trigger: NEEDS CLARIFICATION]) --> Step1[User: action 1]
+    Step1 --> Step2{Decision / branch point?}
+    Step2 -->|Happy path| Step3[System: response]
+    Step2 -->|Branch A condition| BranchA[User/System: branch A step]
+    Step3 --> Success([Postcondition / success state])
+    BranchA --> Success
+    Step3 -->|Failure condition| Error[System: error response]
+    Error --> Recovery[User: recovery action]
+```
+
 ### Flow 2: [NEEDS CLARIFICATION: Flow name]
-[Repeat structure as needed]
+[Repeat structure as needed, including its own Flow Diagram]
 
 ---
 
@@ -178,6 +194,13 @@ Organize every feature under one MoSCoW category. A feature only appears once, i
 ## Non-Functional Requirements
 
 Describe the *quality of experience* users need — always as an observable, testable outcome, never as a named technology or implementation approach.
+
+> **Interview rule for this section:** every NFR target below must be gathered as a multiple-choice question with one recommended option, never asked as an open-ended "what should the number be?" For each applicable dimension, propose 2-4 concrete candidate values (derived from the persona's stated tolerance, an industry/domain benchmark, or a round default), mark exactly one **(Recommended)** with a one-line reason, and let the user pick or override. This is the same rule as Interview Mode point 6 in SKILL.md, called out here because NFR numbers are where an open-ended question is most tempting and most likely to produce an invented figure. Example:
+> - "What's the acceptable page load time for the checkout flow?"
+>   - A) < 1s — best-in-class, likely needs eng investment to hit
+>   - B) < 2s **(Recommended — matches Sarah persona's stated tolerance for in-person transactions)**
+>   - C) < 3s — safer to commit to, weaker experience
+>   - D) Something else (type a value)
 
 - **Performance:** [e.g., response/completion time targets, load expectations]
 - **Reliability/Availability:** [e.g., uptime expectations, acceptable failure rate]

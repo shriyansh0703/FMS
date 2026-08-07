@@ -43,7 +43,7 @@ Say a PRD has grown to 15 Must-Have features and needs to split into feature fil
 ```
 product-requirements-order-lifecycle.md   → Order Lifecycle (all flows, requirements, edge cases)
 product-requirements-payments.md          → Payments (all flows, requirements, edge cases)
-product-requirements-notifications.md      → Notifications (all flows, requirements, edge cases)
+product-requirements-notifications.md     → Notifications (all flows, requirements, edge cases)
 ```
 
 - **Correct:** Everything about Order Lifecycle — its user story, acceptance criteria, flows, and edge cases — lives entirely in `product-requirements-order-lifecycle.md`.

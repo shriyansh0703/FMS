@@ -28,6 +28,7 @@ const CANONICAL = [
   { key: 'implementation',  num: 8,  sub: null, label: 'Stage 8 — Implementation' },
   { key: 'review',          num: 9,  sub: null, label: 'Stage 9 — Code & Architecture Review' },
   { key: 'test',            num: 10, sub: null, label: 'Stage 10 — QA Testing & Browser Validation' },
+  { key: 'security_review', num: 11, sub: null, label: 'Stage 11 — Security Review' },
 ];
 
 const BY_KEY = Object.fromEntries(CANONICAL.map((s) => [s.key, s]));
@@ -154,7 +155,7 @@ function inScopeStages(scope) {
   // The unified HLD (stage 3) and its review always run, whatever the scope.
   const always = [
     'requirement', 'prd_review', 'hld', 'hld_review', 'lld_review',
-    'planning', 'implementation', 'review', 'test',
+    'planning', 'implementation', 'review', 'test', 'security_review',
   ];
   const keys = new Set(always);
   if (scope === 'backend' || scope === 'fullstack') {

@@ -292,6 +292,20 @@ const SCHEMAS = {
     requireVerdict: true,
   },
 
+  // Stage 10 — dedicated security review produced by `security-review`.
+  // A review artifact: exempt from the placeholder ban because it legitimately
+  // quotes defective code, but the verdict line is mandatory since it gates QA.
+  'security-review.md': {
+    minLines: 40,
+    enforceNoPlaceholders: false,
+    requiredSections: [
+      ['verdict'],
+      ['finding', 'vulnerab', 'issue'],
+      ['scope of review', 'scope'],
+    ],
+    requireVerdict: true,
+  },
+
   'test-report.md': {
     minLines: 40,
     enforceNoPlaceholders: false,

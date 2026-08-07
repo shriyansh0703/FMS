@@ -42,11 +42,12 @@ Getting scope wrong wastes an entire sub-stage's work, so do not guess past genu
 | 8 | Implementation | always | `trading-platform-coding` |
 | 9 | Code & Architecture Review | always | `code-reviewer` |
 | 10 | QA Testing & Browser Validation | always | `full-stack-test-suite` |
+| 11 | Security Review — FINAL GATE | always | `security-review` |
 | Multi | Traceability Matrix | incremental across pipeline | no skill — orchestrator-maintained running table (`traceability.md`); not a separate skill invocation |
 
 ### Where the locked skills live
 
-The 12 skills named above are the **only** skills in `.claude/skills/`, which is the sole directory Claude Code discovers project skills from. The lock is therefore structural, not honour-system: an unlisted skill is not merely forbidden, it is **invisible to the runtime** and cannot be invoked.
+The 13 skills named above are the **only** skills in `.claude/skills/`, which is the sole directory Claude Code discovers project skills from. The lock is therefore structural, not honour-system: an unlisted skill is not merely forbidden, it is **invisible to the runtime** and cannot be invoked.
 
 Skill folders that remain in `.ai/skills/` (currently `prd-generator`, `requirements-analysis-2`, `backend-hld-architect`, `frontend-hld-designer`, `hld-reviewer-v1-single-file`) and the legacy stage skills under `.ai/stages/*/SKILL.md` are **explicitly disabled for this workflow**. They are retained for reference only. Their presence does not authorize their use here, and Claude Code will not surface them.
 
@@ -121,6 +122,7 @@ This applies individually to 5a and 5b as well — each sub-stage that actually 
 | 8. Implementation | `planning.md` / `tasks.json` (APPROVED) | Source Code, `traceability.md` (updated) |
 | 9. Code & Architecture Review | Source Code, LLD output + `tasks.json` | `review.md` |
 | 10. QA Testing & Browser Validation | `review.md` (APPROVED), `docs/specs/[NNN]-[name]/product-requirements.md` (+ all feature files in `parts:`) acceptance criteria | `test-report.md`, `browser-report.md`, `traceability.md` (updated) |
+| 11. Security Review — FINAL GATE | `test-report.md` + `browser-report.md` (APPROVED), Source Code, `review.md`, LLD output, OpenAPI/Swagger spec (when the feature has an HTTP surface) | `security-review.md` |
 | Incremental | Artifact produced in stages 1, 3, 5a/5b, 8, 10 | `traceability.md` (appended per stage) |
 
 "APPROVED" means explicitly approved this session via the UI Approval Protocol.
@@ -139,12 +141,12 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
 - Stage 1 creates the table with Requirement ID + Summary columns populated, other columns empty.
   - **Split PRD Awareness:** When populating Stage 1 Requirement IDs, the orchestrator MUST read the index file (`docs/specs/[NNN]-[name]/product-requirements.md`), check its frontmatter `parts:` list, and source Requirement IDs from the index PLUS every listed feature file (`product-requirements-[feature-name].md`) when split.
 - Each subsequent stage (3, 5a/5b, 8, 10) fills in ONLY its own column for rows it covers, using its own artifact as the source — it does not re-derive or re-check earlier columns.
-- Before Stage 9 hands off to Stage 10, add one check (not a full skill invocation, similar in spirit to the existing 5c Consistency Pass) that scans `traceability.md` for any requirement row with a gap (an empty HLD/LLD/Code column despite the requirement being in scope) and HALTs with that gap listed if found, rather than letting it silently proceed to QA.
+- Before Stage 9 hands off to Stage 10 (QA), add one check (not a full skill invocation, similar in spirit to the existing 5c Consistency Pass) that scans `traceability.md` for any requirement row with a gap (an empty HLD/LLD/Code column despite the requirement being in scope) and HALTs with that gap listed if found, rather than letting it silently proceed to QA.
 - This is the mechanism that gives you end-to-end "nothing missed" coverage cheaply — one scan of a table, instead of every reviewer re-reading the entire upstream chain from scratch.
 
 ---
 
-## The 10-Stage Pipeline (Locked)
+## The 11-Stage Pipeline (Locked)
 
 1. **Stage 1 — Requirement Analysis** (`docs/specs/[NNN]-[name]/product-requirements.md`)
    - *Skill*: `prd-generator-split` only.
@@ -217,10 +219,20 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
     - *STRICT MANDATORY DIRECTIVE*: Thoroughly inspect all written source files for bug risks, memory leaks, missing error handling, and style violations. Must reject code containing stubs or placeholders. The reviewer must check implementation actually matches the LLD's API signatures/schemas and that every task in `tasks.json` has corresponding code.
     - *Gate*: HALT. Before presenting `review.md` for approval, scan `traceability.md` for any Requirement ID that is in-scope (per the declared scope field) but has an empty HLD, LLD, or Code Coverage column. If any gap is found, HALT and present the specific gap(s) via `AskUserQuestion` instead of presenting `review.md` — do not proceed to the standard Stage 9 approval gate until this scan passes clean. If changes are requested, route back to Stage 8. Use `AskUserQuestion` tool for approval.
 
-13. **Stage 10 — QA Testing & Browser Validation** (`test-report.md`)
+13. **Stage 10 — QA Testing & Browser Validation** (`test-report.md`, `browser-report.md`)
     - *Skill*: `full-stack-test-suite` only.
     - *STRICT MANDATORY DIRECTIVE*: Execute comprehensive automated tests and browser checks. Fake test reports or skipped edge-case validations are strictly prohibited. The QA skill must test against acceptance criteria across the full PRD set (`docs/specs/[NNN]-[name]/product-requirements.md` + all feature files in `parts:`), not just general functionality.
     - *Gate*: HALT. Use `AskUserQuestion` tool for approval.
+
+14. **Stage 11 — Security Review** (`security-review.md`) — **FINAL GATE**
+    - *Skill*: `security-review` only.
+    - This is the last stage in the pipeline. Nothing ships past it: an approved security review is the pipeline's terminal condition, and no stage runs afterwards.
+    - Runs only after QA is APPROVED, so the review judges the code in the state QA actually exercised — including any fix QA forced. A security review run before QA can be invalidated by the very next test-driven change; running it last removes that window.
+    - *STRICT MANDATORY DIRECTIVE*: Conduct a dedicated, code-anchored security review of the implemented source: server-side authorization at object, property and function level; input validation at trust boundaries; secrets/PII exposure in logs, errors and responses; dependency risk; language-specific hazards (Rust `unsafe`, concurrency, FFI, cancellation safety where in scope); and a systematic OWASP API Security Top 10 walk of every REST endpoint against its OpenAPI contract — including the "boring" CRUD endpoints. Every finding must be severity-graded (CRITICAL/HIGH/MEDIUM/LOW) and anchored to `file:line` or a spec path. Static review only — this stage never probes a running system. A CRITICAL or HIGH finding forces `CHANGES_REQUESTED` and routes back to Stage 8; softening a severity to keep the pipeline moving is a workflow violation.
+    - *Re-entry rule*: when a CRITICAL/HIGH finding sends work back to Stage 8, the fix invalidates QA as well. Stage 10 must re-run and be re-approved before this stage is re-entered — a security fix that never went back through the tests is exactly the change most likely to break behavior silently.
+    - *Distinct from Stage 9*: Stage 9 judges correctness, completeness and architecture conformance; this stage judges only whether the code is safe to expose. It must not re-litigate style or LLD-conformance findings unless they are also security defects.
+    - *Gate*: HALT. Present `security-review.md`. Use `AskUserQuestion` tool for approval.
+    - *Named approval on open findings*: if the report carries any open finding and the user still chooses APPROVE, a second `AskUserQuestion` MUST collect the approver's name (offer `git config user.name` as the recommended option, "Other" for any other name — never auto-filled). The skill then appends an `## Approval Record` section to `security-review.md` (approver, date, verdict, accepted findings, stated basis) and one appended note-row to `traceability.md`, so the acceptance is a named, durable record rather than an anonymous click. This is the pipeline's final sign-off, so the record is the last thing written to the artifact set. A clean zero-finding APPROVED report needs no name prompt.
 
 ---
 
@@ -258,7 +270,7 @@ Permitted values: `APPROVED`, `APPROVED_WITH_CONDITIONS`, `CHANGES_REQUESTED`. A
 
 **Split PRDs.** Hooks parse the index frontmatter `parts:` array and independently verify every listed part file exists and is non-empty; `stop.js` blocks termination and `post-tool.js` flags a completeness error otherwise.
 
-**Traceability.** `post-tool.js` reports which coverage cells an artifact now owes but **deliberately does not auto-fill them** — a hook cannot know which requirement maps to which section, and a fabricated link would defeat the Stage 9 gate rather than satisfy it. The gate itself is real: `stop.js` blocks the Stage 9 → Stage 10 handoff while any in-scope requirement has an empty HLD/LLD/Code cell.
+**Traceability.** `post-tool.js` reports which coverage cells an artifact now owes but **deliberately does not auto-fill them** — a hook cannot know which requirement maps to which section, and a fabricated link would defeat the Stage 9 gate rather than satisfy it. The gate itself is real: `stop.js` blocks the Stage 9 → Stage 10 (QA) handoff while any in-scope requirement has an empty HLD/LLD/Code cell.
 
 **Fail-open policy.** Any internal hook error allows the operation and logs loudly. A broken guard must never brick a teammate's session.
 

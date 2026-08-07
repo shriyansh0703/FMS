@@ -2,9 +2,9 @@
 
 A locked, gate-enforced SDLC pipeline for **Claude Code**. Clone it, open Claude
 Code, type `/prd-to-prod <your feature>`, and every feature is driven from
-requirements to tested production code through 10 mandatory stages — each halting
-for your explicit approval, each artifact validated by deterministic hooks the
-model cannot talk its way past.
+requirements to tested, security-reviewed production code through 11 mandatory
+stages — each halting for your explicit approval, each artifact validated by
+deterministic hooks the model cannot talk its way past.
 
 ## Quick start
 
@@ -53,7 +53,7 @@ with the commands and exactly where the pipeline stands:
 ```
 ──────────────────────────────────────────────────────────────
   PRD → Production Pipeline
-  Locked 10-stage SDLC · 12 skills · guards enforced at write time
+  Locked 11-stage SDLC · 13 skills · guards enforced at write time
 ──────────────────────────────────────────────────────────────
 
   /prd-to-prod <feature>   start, or resume where you left off
@@ -168,8 +168,32 @@ only**. Stage 3 is a single unified system design that always runs.
 | 8 Implementation | `trading-platform-coding` | production source code |
 | 9 Code & Arch Review | `code-reviewer` | `review.md` |
 | 10 QA & Browser | `full-stack-test-suite` | `test-report.md`, `browser-report.md` |
+| 11 Security Review — final gate | `security-review` | `security-review.md` |
 
 Full spec: **`.ai/workflows/prd-to-prod.md`**.
+
+### Why security review runs last
+
+Stage 11 is the pipeline's terminal condition — nothing runs after it. It reviews
+the code in the exact state QA exercised, including every fix QA forced, so no
+later change can invalidate the review. A `CRITICAL` or `HIGH` finding routes back
+to Stage 8, and because that fix invalidates QA too, **Stage 10 must re-run and be
+re-approved before Stage 11 is re-entered**.
+
+It is a static, code-and-contract review — it never probes a running system.
+Coverage: server-side authorization at object, property and function level;
+input validation at trust boundaries; secrets and PII in logs, errors and
+responses; dependency risk; Rust `unsafe`/concurrency/FFI/cancellation hazards
+where in scope; and a systematic OWASP API Security Top 10 walk of every REST
+endpoint against its OpenAPI contract, including the boring CRUD ones where
+object-level authorization gaps actually hide.
+
+**Approving open findings requires a name.** If you APPROVE a security review that
+still carries findings, a second prompt asks whose name the approval record
+carries — offering your `git config user.name` but never filling it in silently.
+The skill then appends an `## Approval Record` to `security-review.md` (approver,
+date, verdict, each accepted finding, stated basis) and a note-row to
+`traceability.md`. A clean zero-finding report skips the prompt.
 
 ## What makes this different from "just prompting well"
 
@@ -188,7 +212,9 @@ Claude Code hooks enforce them at runtime.
   design document → denied.
 - **Ownership.** Stage 1 cannot write the Stage 5 artifact.
 - **Verdict gate.** A downstream artifact cannot be written while its gating
-  review says `CHANGES_REQUESTED`.
+  review says `CHANGES_REQUESTED`. The chain: `prd-review.md` gates the HLD,
+  `hld-review.md` gates the LLDs, `lld-review.md` gates planning, and `review.md`
+  gates both QA and the security review.
 
 ### `hooks/post-tool.js` — tracks integrity
 
@@ -200,7 +226,8 @@ cells are still owed.
 
 Blocks the turn from ending while in-scope artifacts are missing, PRD parts are
 incomplete, artifacts are stale, the current stage is unapproved, or — at Stage 9
-— any in-scope requirement still has an empty coverage cell.
+— any in-scope requirement still has an empty coverage cell before the handoff to
+QA.
 
 All three **fail open**: a bug in a guard logs loudly and allows the operation. A
 broken hook must never brick a teammate's session.
@@ -221,6 +248,12 @@ The reviewers' own wording is accepted too and normalised automatically —
 unrecognised is rejected at write time, which is what makes the hard-blocking rule
 enforceable rather than aspirational.
 
+Five artifacts carry a verdict: `prd-review.md`, `hld-review.md`, `lld-review.md`,
+`review.md` and `security-review.md`. The QA reports do not — which means "QA must
+be approved before the security review" is enforced by the workflow rules and the
+Stop hook's stage-approval check, not by the verdict validator. Adding a verdict
+line to the QA report schema would close that gap if you want it mechanical.
+
 ## Layout
 
 ```
@@ -228,7 +261,7 @@ CLAUDE.md                      # auto-loaded; makes the workflow the default beh
 .claude/
   settings.json                # hook registration
   commands/                    # /prd-to-prod, /workflow-status, /workflow-reset
-  skills/                      # the 12 LOCKED skills — the only discoverable ones
+  skills/                      # the 13 LOCKED skills — the only discoverable ones
 .ai/
   workflows/prd-to-prod.md     # authoritative spec
   artifacts/                   # generated stage artifacts
@@ -241,7 +274,7 @@ hooks/
   pre-tool.js  post-tool.js  stop.js
   utils/                       # config, stage-keys, hook-io, artifact-schema, traceability
   validators/                  # ownership, verdict, schema, JSON, markdown, transitions
-  test/run-tests.js            # 44-assertion guard verification
+  test/run-tests.js            # 51-assertion guard verification
 docs/specs/                    # PRDs live here
 ```
 
@@ -253,10 +286,12 @@ docs/specs/                    # PRDs live here
   from defaults on first read.
 - **Artifacts are never deleted.** Stale ones are superseded and re-approved;
   `/workflow-reset` archives rather than removes.
-- **Skill files are immutable.** The locked skills were relocated byte-for-byte
-  during the Claude Code port. Runtime and path concerns belong in the hooks —
-  `hooks/utils/config.js` recognises artifacts under `.ai/artifacts/`,
-  `.ai/stages/**` and `docs/specs/**` — never in a skill rewrite.
+- **Never edit a skill to accommodate tooling.** The locked skills were relocated
+  byte-for-byte during the Claude Code port, and runtime or path concerns belong
+  in the hooks — `hooks/utils/config.js` recognises artifacts under
+  `.ai/artifacts/`, `.ai/stages/**` and `docs/specs/**`. Skills do get updated
+  when their *content* changes (a new mandatory gate, a new required output), but
+  a hook denying a write is never a reason to rewrite the skill that produced it.
 - **Tuning strictness:** depth floors and required sections live in
   `hooks/utils/artifact-schema.js`. Raise them if shallow artifacts still get
   through; lower them if a genuinely small feature is being blocked.

@@ -42,6 +42,8 @@ Use this checklist to validate PRD completeness before proceeding to a technical
 - [ ] **Every flow has at least one error/exception path** - What happens when something goes wrong, and how the user recovers
 - [ ] **Every flow states its postcondition/success state** - Clear definition of "done"
 - [ ] **Flows are written in plain, user-facing language** - No UI component names, no system-internals language
+- [ ] **Every flow has a Mermaid `flowchart TD` diagram** - Not just the point-by-point breakdown
+- [ ] **The diagram and the points are consistent** - Same steps, same branches, same error paths in both forms; neither contains something the other doesn't
 
 ### Requirements Quality
 - [ ] **All MoSCoW categories addressed** - Must/Should/Could/Won't all defined
@@ -53,6 +55,7 @@ Use this checklist to validate PRD completeness before proceeding to a technical
 - [ ] **No contradictions between sections** - Consistent throughout
 - [ ] **Non-Functional Requirements are outcome-based** - Performance/reliability/security/scalability described as user-observable targets, never as a named technology or mechanism
 - [ ] **Every NFR number has a stated basis** - Or carries the `[PROPOSED: pending eng confirmation]` marker; no invented numbers presented as settled
+- [ ] **Every NFR number was gathered as an MCQ with a recommended option** - Not asked or answered as a bare open-ended number (see template.md → Non-Functional Requirements → Interview rule)
 
 ### Success Criteria
 - [ ] **KPIs defined for adoption** - User acquisition/activation targets

@@ -17,7 +17,7 @@ const validateProjectJson = (obj) => {
     });
     
     if (obj.stages && typeof obj.stages === 'object') {
-        const expectedStages = ['requirement', 'prd_review', 'hld', 'hld_review', 'lld', 'lld_review', 'planning', 'implementation', 'review', 'test'];
+        const expectedStages = ['requirement', 'prd_review', 'hld', 'hld_review', 'lld', 'lld_review', 'planning', 'implementation', 'review', 'test', 'security_review'];
         expectedStages.forEach(stage => {
             if (!(stage in obj.stages)) {
                 errors.push(`Missing stage key in stages: ${stage}`);

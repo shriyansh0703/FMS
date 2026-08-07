@@ -16,6 +16,8 @@ This consolidates every checklist scattered across the other reference files int
 - [ ] Every new/changed endpoint's actual exposure (public/internal/admin), auth presence, and error-response verbosity were checked, not assumed
 - [ ] Any critical/high finding from any of the three scans was surfaced explicitly in the Verification report — either the user explicitly accepted it, or it was fixed and the fix re-scanned, never silently omitted
 - [ ] If any finding triggered the failure loop-back (SKILL.md), the loop actually completed — fix, re-run the specific failing check, confirm it passes — not just attempted once and left unresolved
+- [ ] No unresolved Critical/High finding remains: each was root-caused, fixed with functionality preserved, rebuilt, retested, re-verified through the OpenAPI gate if the fix changed an API surface, and re-scanned — or explicitly accepted by the user
+- [ ] A `## Security Report` was produced (SKILL.md, Mandatory Gates) with total scans, findings per scan, fixes applied, rescan cycles, and a final PASS/FAIL — not just the last scan's output
 
 ## Rust backend (if this task touched `references/language-runtime/rust-backend.md` territory)
 - [ ] Zero heap allocation in the order-received → order-acknowledged path
@@ -140,6 +142,17 @@ This consolidates every checklist scattered across the other reference files int
 - [ ] The spec passes lint (Spectral or platform-equivalent) with no unresolved errors
 - [ ] Any breaking change carries a new version; deprecations are marked with a stated migration path
 - [ ] A contract test (Schemathesis/Dredd or equivalent) validates the real implementation against the published spec
+
+## OpenAPI generation, verification & API documentation (any task that created, modified, renamed, or removed an endpoint — `references/foundation/openapi-generation-pipeline.md`, MANDATORY, skip only when the task has no HTTP surface at all)
+- [ ] Backend language/framework was detected from the repository (manifest + server bootstrap), not assumed
+- [ ] Swagger/OpenAPI support existed, or was installed and wired automatically — with the install scanned per `dependency-vulnerability-scanning.md`, never auto-installed unscanned
+- [ ] The spec was generated with the framework's native mechanism, and the exact command and output path are recorded
+- [ ] All nine validation checks ran: spec exists, spec is valid, every code-registered route appears as an operation, request schemas, response schemas, authentication documented, security schemes present and referenced, validation rules match what the code enforces, examples present where supported
+- [ ] The documentation URL and the specification URL were actually fetched and returned 200 — route registration in source alone was not accepted as verification (or the inability to start the service is stated explicitly as unverified)
+- [ ] A `## Swagger Verification Report` was produced with framework, library, generation command, file location, both URLs, endpoint count vs. route count, schema count, validation status, and warnings
+- [ ] Human-readable API documentation was generated **from the verified spec** (project's existing docs format where one exists), covering overview, version, base URL, authentication, security requirements, endpoint summary, parameters, request/response examples, error responses, schemas, validation rules, and status codes
+- [ ] Documentation is synchronized with the final state of the spec — regenerated after the last spec-changing edit, including any change made by a test fix or a security fix
+- [ ] Any generation/validation failure ran the automatic repair loop (root cause → config/dependency/annotation repair → regenerate → re-verify) and either succeeded or was escalated after 3 attempts with evidence — never reported as skipped or passed
 
 ## Security (`references/compliance-safety/security-review.md` — every task, since input handling can hide anywhere)
 - [ ] Every `unsafe` Rust block has a written safety justification

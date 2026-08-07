@@ -26,6 +26,7 @@ const STAGES = [
   'implementation',
   'review',
   'test',
+  'security_review',
 ];
 
 const STAGE_INDEX = Object.fromEntries(STAGES.map((s, i) => [s, i]));
@@ -43,6 +44,7 @@ const STAGE_NAMES = {
   implementation:  'Stage 8 — Implementation',
   review:          'Stage 9 — Code & Architecture Review',
   test:            'Stage 10 — QA Testing & Browser Validation',
+  security_review: 'Stage 11 — Security Review',
 };
 
 // Skill mappings per sub-stage
@@ -59,6 +61,7 @@ const SKILL_MAP = {
   implementation:  ['trading-platform-coding'],
   review:          ['code-reviewer'],
   test:            ['full-stack-test-suite'],
+  security_review: ['security-review'],
 };
 
 const ARTIFACT_DIR = path.join(WORKSPACE_ROOT, '.ai', 'artifacts');
@@ -90,6 +93,7 @@ const STAGE_ARTIFACTS = {
   implementation:  [],
   review:          ['review.md'],
   test:            ['test-report.md', 'browser-report.md'],
+  security_review: ['security-review.md'],
 };
 
 const ARTIFACT_OWNER = {
@@ -112,6 +116,7 @@ const ARTIFACT_OWNER = {
   'review.md': 'review',
   'test-report.md': 'test',
   'browser-report.md': 'test',
+  'security-review.md': 'security_review',
   // Orchestrator-maintained, appended to incrementally across the whole
   // pipeline. '*' means "any stage may write this".
   'traceability.md': '*',
@@ -135,6 +140,7 @@ const DEPENDENCY_CHAIN = [
   'review.md',
   'test-report.md',
   'browser-report.md',
+  'security-review.md',
 ];
 
 /**

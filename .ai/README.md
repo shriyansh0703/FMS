@@ -1,6 +1,6 @@
 # The `.ai/` directory
 
-Supporting files for the locked **10-stage PRD→Production pipeline** that runs under
+Supporting files for the locked **11-stage PRD→Production pipeline** that runs under
 **Claude Code**.
 
 > **Runtime note.** This pipeline was originally built for Google Antigravity and has
@@ -27,7 +27,7 @@ Claude Code discovers skills, commands and hooks from `.claude/` and the repo ro
 | `.ai/dashboard/` | Zero-dependency live dashboard | **yes** |
 | `.ai/skills/` | **Disabled** skills, retained for reference | no — not discoverable |
 | `.ai/stages/*/SKILL.md` | Legacy stage skills from the 7-stage era | no — not discoverable |
-| `../.claude/skills/` | The **12 locked skills** | **yes** — the only discoverable ones |
+| `../.claude/skills/` | The **13 locked skills** | **yes** — the only discoverable ones |
 | `../.claude/commands/` | `/prd-to-prod`, `/workflow-status`, `/workflow-reset` | **yes** |
 | `../hooks/` | The three enforcement hooks + preflight | **yes** |
 
@@ -36,7 +36,7 @@ to the runtime, because Claude Code only scans `.claude/skills/`.
 
 ---
 
-## 2. The 10-stage pipeline
+## 2. The 11-stage pipeline
 
 Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and decides which **Stage 5**
 sub-stages exist. Stage 3 is one unified design that always runs.
@@ -75,9 +75,12 @@ graph TD
     A7 --> S8[8 Implementation]:::stage --> A8(Source code):::artifact
     A8 --> S9[9 Code and Arch Review]:::stage --> A9(review.md):::artifact
     A9 --> S10[10 QA and Browser]:::stage --> A10(test-report.md + browser-report.md):::artifact
+    A10 --> S11[11 Security Review FINAL GATE]:::stage --> A11(security-review.md):::artifact
 
     S6 -.->|CHANGES_REQUESTED| S5a
     S9 -.->|CHANGES_REQUESTED| S8
+    S11 -.->|CRITICAL or HIGH| S8
+    S8 -.->|fix invalidates QA| S10
 ```
 
 Dashed nodes are scope-gated. `5c` runs only for `fullstack`.
@@ -86,7 +89,7 @@ Dashed nodes are scope-gated. `5c` runs only for `fullstack`.
 
 ## 3. Skill directory
 
-All 12 live in `../.claude/skills/`. These are the **only** skills this workflow may invoke.
+All 13 live in `../.claude/skills/`. These are the **only** skills this workflow may invoke.
 
 | Stage | Skill |
 |---|---|
@@ -102,6 +105,7 @@ All 12 live in `../.claude/skills/`. These are the **only** skills this workflow
 | 8 Implementation | `trading-platform-coding` |
 | 9 Code & Arch Review | `code-reviewer` |
 | 10 QA & Browser | `full-stack-test-suite` |
+| 11 Security Review — final gate | `security-review` |
 
 **Disabled, retained for reference only** — these are *not* discoverable and must never
 be invoked: `.ai/skills/prd-generator` (superseded by `prd-generator-split`), `backend-hld-architect`
@@ -142,7 +146,8 @@ Rules are executed, not merely documented. Three hooks in `../hooks/`, registere
 - **`post-tool.js`** records checksums and versions, cascades staleness (scope-aware),
   validates split-PRD completeness, and reports owed traceability cells.
 - **`stop.js`** blocks the turn from ending on missing in-scope artifacts, incomplete PRD
-  parts, stale artifacts, an unapproved stage, or Stage 9 traceability gaps.
+  parts, stale artifacts, an unapproved stage, or Stage 9 traceability gaps before the
+  handoff to QA.
 - **`session-start.sh`** (POSIX `sh`, so it works even without Node) warns loudly if Node
   is missing — otherwise the guards would silently not run.
 

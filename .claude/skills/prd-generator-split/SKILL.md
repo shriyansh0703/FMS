@@ -59,7 +59,7 @@ The template's sections, in order, and what each is for:
 | Goals | Qualitative product goals and explicit non-goals |
 | Stakeholders | Who has a stake, their interest, and approval requirements |
 | User Personas | Demographics, goals, pain points, and formal "As a / I want / so that" user stories |
-| User Flows | Fully-branched flows: happy path, alternate branches, error paths, pre/postconditions |
+| User Flows | Fully-branched flows: happy path, alternate branches, error paths, pre/postconditions — written both as numbered points and as a Mermaid `flowchart TD` diagram, kept consistent with each other |
 | Functional Requirements | Features by MoSCoW, each with a user story and EARS acceptance criteria |
 | Non-Functional Requirements | Outcome-based quality bars (performance, reliability, usability, security, scalability, compliance) |
 | Detailed Feature Specifications | Business rules and edge cases for the most complex Must-Have features |
@@ -147,6 +147,7 @@ When gathering the information needed to fill in the template, default to a sing
    - If the environment has an interactive option-picker tool available, use it for the question. Otherwise render the options as a short lettered/labeled list in chat, with the recommended one clearly flagged, and let the user reply with their pick or override it with something else entirely.
    - The user's answer is always final — the recommendation is a default to accelerate the interview, never a constraint on what they can choose. An explicit override or free-text answer always wins.
    - **Even genuinely open-ended-seeming questions get this treatment.** For a number, date, or name with no natural small option set, still propose 2-4 concrete candidate values (e.g., derived from the persona's stated tolerance, an industry benchmark, or a round default) with one marked Recommended, plus an implicit "something else" the user can type instead. Never send a question with no options attached.
+   - **Non-Functional Requirements are the highest-risk section for this rule** — every latency/uptime/throughput/concurrency target must be gathered as an MCQ with a recommended pick (see the Interview rule callout in template.md → Non-Functional Requirements), never asked as a bare "what's the target?" This is where invented numbers are most likely to slip in if the rule is skipped.
    - This subsumes and generalizes the Decision Brief pattern below — Decision Briefs are the version of this rule for judgment-call trade-offs specifically; this point is the same rule applied to every interview question, including plain fact lookups.
    - Use the persona's/problem's own vocabulary once established, and keep each option concrete enough to be independently actionable.
 7. **Surface tech-agnostic violations as they happen** — if the user's answer contains an implementation detail (e.g., "we'll use OAuth"), acknowledge it but translate it into the outcome it implies for the PRD ("got it — so the requirement is that a user only signs in once, and it stays true regardless of implementation"). If the user explicitly asks what technology to use, see "Tech Stack Suggestions" below — you may answer conversationally, but the answer never enters the PRD.
@@ -215,6 +216,7 @@ Before presenting the PRD as complete, validate from multiple perspectives:
 
 ### Gap Analysis
 - Gaps in user flows (missing branches or error paths)
+- Every user flow's Mermaid diagram matches its point-by-point breakdown — same steps, same branches, same error paths, nothing in one that's absent from the other
 - Missing edge cases
 - Unclear acceptance criteria
 - Contradictions between sections
