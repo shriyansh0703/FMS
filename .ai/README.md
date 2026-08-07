@@ -72,7 +72,7 @@ graph TD
     S6 --> A6(lld-review.md):::artifact
 
     A6 --> S7[7 Planning]:::stage --> A7(planning.md + tasks.json):::artifact
-    A7 --> S8[8 Implementation]:::stage --> A8(Source code):::artifact
+    A7 --> S8[8 Implementation]:::stage --> A8(Source code + swagger-verification.md + security-report.md):::artifact
     A8 --> S9[9 Code and Arch Review]:::stage --> A9(review.md):::artifact
     A9 --> S10[10 QA and Browser]:::stage --> A10(test-report.md + browser-report.md):::artifact
     A10 --> S11[11 Security Review FINAL GATE]:::stage --> A11(security-review.md):::artifact
@@ -141,17 +141,18 @@ Rules are executed, not merely documented. Three hooks in `../hooks/`, registere
 `../.claude/settings.json`:
 
 - **`pre-tool.js`** denies writes that fall below depth floors, miss required sections,
-  contain `TBD`/placeholders in a design doc, violate artifact ownership, or breach the
-  verdict gate.
+  contain `TBD`/placeholders in a design doc, violate artifact ownership, breach the
+  verdict gate, or — for the Stage 8 gate reports — record a `FAIL` status.
 - **`post-tool.js`** records checksums and versions, cascades staleness (scope-aware),
   validates split-PRD completeness, and reports owed traceability cells.
-- **`stop.js`** blocks the turn from ending on missing in-scope artifacts, incomplete PRD
-  parts, stale artifacts, an unapproved stage, or Stage 9 traceability gaps before the
-  handoff to QA.
+- **`stop.js`** blocks the turn from ending on missing in-scope artifacts (including
+  Stage 8's `swagger-verification.md` and `security-report.md`), incomplete PRD parts,
+  stale artifacts, an unapproved stage, or Stage 9 traceability gaps before the handoff
+  to QA.
 - **`session-start.sh`** (POSIX `sh`, so it works even without Node) warns loudly if Node
   is missing — otherwise the guards would silently not run.
 
-Verify with `node hooks/test/run-tests.js` — 51 assertions, ~5 seconds, no side effects.
+Verify with `node hooks/test/run-tests.js` — 63 assertions, ~5 seconds, no side effects.
 
 ---
 
@@ -163,7 +164,7 @@ Verify with `node hooks/test/run-tests.js` — 51 assertions, ~5 seconds, no sid
 git clone -b claude-code https://github.com/Thinq-Money/prd-to-prod.git
 cd prd-to-prod
 node --version || brew install node    # macOS ships no Node
-node hooks/test/run-tests.js           # expect 51 passed
+node hooks/test/run-tests.js           # expect 63 passed
 claude
 ```
 

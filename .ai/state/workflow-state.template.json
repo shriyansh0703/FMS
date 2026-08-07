@@ -122,6 +122,26 @@
       "lastModifiedBySkill": null,
       "approvalStatus": "pending"
     },
+    "swagger-verification.md": {
+      "version": 0,
+      "createdAt": null,
+      "updatedAt": null,
+      "stage": null,
+      "status": "not_created",
+      "checksum": null,
+      "lastModifiedBySkill": null,
+      "approvalStatus": "pending"
+    },
+    "security-report.md": {
+      "version": 0,
+      "createdAt": null,
+      "updatedAt": null,
+      "stage": null,
+      "status": "not_created",
+      "checksum": null,
+      "lastModifiedBySkill": null,
+      "approvalStatus": "pending"
+    },
     "review.md": {
       "version": 0,
       "createdAt": null,

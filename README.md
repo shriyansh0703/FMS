@@ -60,7 +60,7 @@ with the commands and exactly where the pipeline stands:
   /workflow-status         current stage, pending gate, blockers
   /workflow-reset          back to Stage 1 (archives, never deletes)
 
-  node hooks/test/run-tests.js     prove the guards fire (51 checks)
+  node hooks/test/run-tests.js     prove the guards fire (63 checks)
   node .ai/dashboard/server.js     live dashboard
 
   Every stage HALTS for your approval. Artifacts too thin, missing a
@@ -83,7 +83,7 @@ followed by `AWAITING YOUR APPROVAL on hld.md`. It fires on startup, resume and
 node hooks/test/run-tests.js
 ```
 
-Expected: `Result: 51 passed, 0 failed`. Each hook runs as a real child process
+Expected: `Result: 63 passed, 0 failed`. Each hook runs as a real child process
 against synthetic Claude Code payloads. If this passes, enforcement is genuinely
 active — not merely documented. Takes about 5 seconds and leaves no trace.
 
@@ -165,7 +165,7 @@ only**. Stage 3 is a single unified system design that always runs.
 | 5c LLD Consistency | *(orchestrator)* | `lld.md` |
 | 6 LLD Review | `lld-reviewer` / `frontend-lld-review` | `lld-review.md` |
 | 7 Planning | `edited-plan-skill` | `planning.md`, `tasks.json` |
-| 8 Implementation | `trading-platform-coding` | production source code |
+| 8 Implementation | `trading-platform-coding` | source code, `swagger-verification.md`, `security-report.md` |
 | 9 Code & Arch Review | `code-reviewer` | `review.md` |
 | 10 QA & Browser | `full-stack-test-suite` | `test-report.md`, `browser-report.md` |
 | 11 Security Review — final gate | `security-review` | `security-review.md` |
@@ -210,6 +210,13 @@ Claude Code hooks enforce them at runtime.
   handling section in an LLD → denied.
 - **Placeholder ban.** `TBD`, `<placeholder>`, `[fill in]`, `// ... rest` in a
   design document → denied.
+- **Gate reports must pass, not merely exist.** Stage 8 writes
+  `swagger-verification.md` and `security-report.md`; the Stop hook will not let
+  the turn end without both, and a write stating `Validation status: FAIL` or
+  `Final status: FAIL` is denied. Recording a failed gate as a finished task is
+  the exact outcome those files exist to prevent. A task with no HTTP surface
+  still writes the Swagger report with `N/A — no REST endpoints`; nothing waives
+  the Security Report.
 - **Ownership.** Stage 1 cannot write the Stage 5 artifact.
 - **Verdict gate.** A downstream artifact cannot be written while its gating
   review says `CHANGES_REQUESTED`. The chain: `prd-review.md` gates the HLD,

@@ -128,7 +128,7 @@ GREETING="───────────────────────�
   /workflow-reset          back to Stage 1 (archives, never deletes)
 
   node hooks/doctor.cjs             preflight: is anything actually enforcing?
-  node hooks/test/run-tests.js     prove the guards fire (51 checks, sandboxed)
+  node hooks/test/run-tests.js     prove the guards fire (63 checks, sandboxed)
   node .ai/dashboard/server.js     live dashboard
 
   Every stage HALTS for your approval. Artifacts too thin, missing a
@@ -146,7 +146,7 @@ if [ "$NODE_OK" -eq 0 ]; then
 
       brew install node
 
-  Then verify:  node hooks/test/run-tests.js   (expect 51 passed)"
+  Then verify:  node hooks/test/run-tests.js   (expect 63 passed)"
 elif [ "$DOCTOR_FAILS" -gt 0 ] 2>/dev/null; then
   GREETING="*** WORKFLOW PREFLIGHT FAILED — ${DOCTOR_FAILS} PROBLEM(S) ***
 
@@ -156,7 +156,7 @@ ${DOCTOR_SUMMARY}
   Until it is fixed, a stage that appears to pass is not evidence of anything.
 
   Full report:  node hooks/doctor.cjs
-  Guard proof:  node hooks/test/run-tests.js   (expect 51 passed, sandboxed)"
+  Guard proof:  node hooks/test/run-tests.js   (expect 63 passed, sandboxed)"
 else
   NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 99)
   if [ "$NODE_MAJOR" -lt 12 ] 2>/dev/null; then

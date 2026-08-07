@@ -51,7 +51,7 @@ The 13 skills named above are the **only** skills in `.claude/skills/`, which is
 
 Skill folders that remain in `.ai/skills/` (currently `prd-generator`, `requirements-analysis-2`, `backend-hld-architect`, `frontend-hld-designer`, `hld-reviewer-v1-single-file`) and the legacy stage skills under `.ai/stages/*/SKILL.md` are **explicitly disabled for this workflow**. They are retained for reference only. Their presence does not authorize their use here, and Claude Code will not surface them.
 
-Skill file contents are treated as immutable by this port — the locked skills were relocated byte-for-byte and must not be edited to accommodate tooling. Path and runtime concerns are handled by the hooks (`hooks/utils/config.js` recognises artifacts under `.ai/artifacts/`, `.ai/stages/**` and `docs/specs/**`), never by rewriting a skill.
+A skill is never edited to accommodate tooling — the locked skills were relocated byte-for-byte by this port, and path or runtime concerns are handled by the hooks (`hooks/utils/config.js` recognises artifacts under `.ai/artifacts/`, `.ai/stages/**` and `docs/specs/**`), never by rewriting a skill. Skills do get updated when their *content* changes (a new mandatory gate, a new required output), but a hook denying a write is never a reason to rewrite the skill that produced it.
 
 ### Stage 1 skill: why `prd-generator-split`
 
@@ -119,7 +119,7 @@ This applies individually to 5a and 5b as well — each sub-stage that actually 
 | 5c. LLD Consistency Pass | 5a and 5b both APPROVED, scope = fullstack | `lld.md` |
 | 6. LLD Review | output of 5a/5b/5c (whichever ran), `hld.md` | `lld-review.md` |
 | 7. Planning | `lld-review.md` (APPROVED) | `planning.md`, `tasks.json` |
-| 8. Implementation | `planning.md` / `tasks.json` (APPROVED) | Source Code, `traceability.md` (updated) |
+| 8. Implementation | `planning.md` / `tasks.json` (APPROVED) | Source Code, `swagger-verification.md`, `security-report.md`, `traceability.md` (updated) |
 | 9. Code & Architecture Review | Source Code, LLD output + `tasks.json` | `review.md` |
 | 10. QA Testing & Browser Validation | `review.md` (APPROVED), `docs/specs/[NNN]-[name]/product-requirements.md` (+ all feature files in `parts:`) acceptance criteria | `test-report.md`, `browser-report.md`, `traceability.md` (updated) |
 | 11. Security Review — FINAL GATE | `test-report.md` + `browser-report.md` (APPROVED), Source Code, `review.md`, LLD output, OpenAPI/Swagger spec (when the feature has an HTTP surface) | `security-review.md` |
@@ -212,6 +212,7 @@ The traceability matrix is a single running table, NOT regenerated from scratch 
       1. **No Short-cuts or Speed Rushing**: The agent MUST thoroughly inspect `lld.md` (or `lld-backend.md` / `lld-frontend.md`, whichever exist per scope), `hld.md`, and `tech-stack.md` before writing a single line of code. Rushing through implementation to trigger approval gates is strictly forbidden.
       2. **Complete & Rigorous Production Code First**: The agent MUST write 100% of all controllers, services, repositories, models, DTOs, configurations, and framework annotations (`@RestController`, `@RequestMapping`, `@PostMapping`, etc.) up-front. Partial, sample, or unannotated code scaffolds are strictly prohibited.
       3. **Quality Over Velocity**: The goal is to deliver complete, production-ready, fully functional software. Speed or pipeline progression is NEVER a justification for incomplete code.
+      4. **Two gate reports are mandatory and mechanically enforced**: the stage produces `.ai/artifacts/swagger-verification.md` and `.ai/artifacts/security-report.md` alongside the source code. `hooks/stop.js` refuses to end the turn until both exist, and `hooks/pre-tool.js` denies either write unless it carries a passing status line — `Validation status: PASS` (or `N/A — no REST endpoints` when the task genuinely has no HTTP surface) for Swagger, `Final status: PASS` (or `PASS WITH USER-ACCEPTED FINDINGS`) for security. A `FAIL` status is denied at write time: run the skill's repair loop or security compliance loop until the gate genuinely passes, rather than persisting a failed gate as a completed task.
     - *Gate*: HALT. Verify that every task in `tasks.json` has its full, annotated source files written. Present a comprehensive summary of all created files with clickable file links. Use `AskUserQuestion` tool for approval.
 
 12. **Stage 9 — Code & Architecture Review** (`review.md`)
@@ -252,7 +253,7 @@ This workflow is protected by deterministic Claude Code hooks, registered in `.c
 | **PostToolUse** | `Write\|Edit\|MultiEdit\|NotebookEdit` | `hooks/post-tool.js` | Records versions/checksums, cascades staleness (scope-aware), extracts declared `scope` and verdicts, reports owed traceability cells |
 | **Stop** | — | `hooks/stop.js` | Blocks premature termination: missing in-scope artifacts, incomplete PRD `parts:`, stale artifacts, unapproved stage, Stage 9 traceability gaps |
 
-Verify the guards at any time with `node hooks/test/run-tests.js` — 51 assertions run each hook as a real child process against synthetic Claude Code payloads.
+Verify the guards at any time with `node hooks/test/run-tests.js` — 63 assertions run each hook as a real child process against synthetic Claude Code payloads.
 
 ### Enforcement contract
 

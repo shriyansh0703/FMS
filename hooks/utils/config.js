@@ -90,7 +90,11 @@ const STAGE_ARTIFACTS = {
   lld_consistency: ['lld.md'],
   lld_review:      ['lld-review.md'],
   planning:        ['planning.md', 'tasks.json'],
-  implementation:  [],
+  // Source code is the real Stage 8 output, but these two reports are the gates
+  // `trading-platform-coding` declares MANDATORY. Requiring them here is what
+  // makes "no completion without Swagger verification and a security scan"
+  // enforceable rather than aspirational.
+  implementation:  ['swagger-verification.md', 'security-report.md'],
   review:          ['review.md'],
   test:            ['test-report.md', 'browser-report.md'],
   security_review: ['security-review.md'],
@@ -113,6 +117,8 @@ const ARTIFACT_OWNER = {
   'lld-review.md': 'lld_review',
   'planning.md': 'planning',
   'tasks.json': 'planning',
+  'swagger-verification.md': 'implementation',
+  'security-report.md': 'implementation',
   'review.md': 'review',
   'test-report.md': 'test',
   'browser-report.md': 'test',
@@ -137,6 +143,8 @@ const DEPENDENCY_CHAIN = [
   'lld-review.md',
   'planning.md',
   'tasks.json',
+  'swagger-verification.md',
+  'security-report.md',
   'review.md',
   'test-report.md',
   'browser-report.md',

@@ -87,7 +87,7 @@ while telling you the real one is absent.
 | 5c LLD Consistency | `lld.md` |
 | 6 LLD Review | `lld-review.md` |
 | 7 Planning | `planning.md`, `tasks.json` |
-| 8 Implementation | *(source code only — no artifact)* |
+| 8 Implementation | `swagger-verification.md`, `security-report.md` (+ source code) |
 | 9 Code & Arch Review | `review.md` |
 | 10 QA & Browser | `test-report.md`, `browser-report.md` |
 | 11 Security Review | `security-review.md` |
@@ -96,6 +96,23 @@ while telling you the real one is absent.
 Stage 10 is **two** documents, not one combined report: the test results and the
 browser validation have different audiences and different failure modes, and
 merging them buries the browser limitations inside a passing test summary.
+
+### Stage 8's two gate reports carry a status line the hooks enforce
+
+`swagger-verification.md` and `security-report.md` are not paperwork — the Stop
+hook will not let the turn end without both, and `pre-tool.js` denies either write
+unless it states a passing outcome:
+
+| File | Required line | Passing values |
+|---|---|---|
+| `swagger-verification.md` | `Validation status:` | `PASS`, or `N/A — no REST endpoints` |
+| `security-report.md` | `Final status:` | `PASS`, or `PASS WITH USER-ACCEPTED FINDINGS` |
+
+A `FAIL` status is **denied at write time**. That is deliberate: recording a failed
+gate as a finished task is precisely the outcome these files exist to prevent. Fix
+the underlying problem and re-run the gate. A task with no HTTP surface still writes
+`swagger-verification.md` with the `N/A` status — writing it is what proves the gate
+was considered rather than forgotten. Nothing waives the Security Report.
 
 ## Quality bar — this is the whole point
 

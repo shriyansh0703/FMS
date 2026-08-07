@@ -292,7 +292,50 @@ const SCHEMAS = {
     requireVerdict: true,
   },
 
-  // Stage 10 — dedicated security review produced by `security-review`.
+  // Stage 8 — the two completion reports `trading-platform-coding` must persist
+  // to disk. The skill declares both MANDATORY; before these entries existed the
+  // claim was prose only, so a run that silently skipped Swagger generation or
+  // the security scan loop advanced with nothing objecting.
+  //
+  // A task with no HTTP surface still writes swagger-verification.md, stating
+  // `Validation status: N/A — no REST endpoints`. That is the skill's own
+  // exemption, and writing it is what proves the gate was considered rather than
+  // forgotten. Nothing waives the Security Report.
+  'swagger-verification.md': {
+    minLines: 8,
+    enforceNoPlaceholders: false,
+    requiredSections: [
+      ['swagger verification report', 'swagger', 'openapi'],
+    ],
+    requireStatusLine: {
+      label: 'Validation status',
+      passing: ['PASS', 'N/A'],
+      hint:
+        'Emit the `## Swagger Verification Report` from ' +
+        'references/foundation/openapi-generation-pipeline.md Step 6. A FAIL must run ' +
+        'that file\'s repair loop before the task completes; a task with no HTTP ' +
+        'surface writes "Validation status: N/A — no REST endpoints".',
+    },
+  },
+
+  'security-report.md': {
+    minLines: 8,
+    enforceNoPlaceholders: false,
+    requiredSections: [
+      ['security report', 'security'],
+    ],
+    requireStatusLine: {
+      label: 'Final status',
+      passing: ['PASS'],
+      hint:
+        'Emit the `## Security Report` from SKILL.md\'s Mandatory Gates section. ' +
+        'An unresolved Critical/High finding means the security compliance execution ' +
+        'loop has not finished — fix at the root, rebuild, retest, re-scan. ' +
+        '"PASS WITH USER-ACCEPTED FINDINGS" is permitted and must name the user\'s decision.',
+    },
+  },
+
+  // Stage 11 — dedicated security review produced by `security-review`.
   // A review artifact: exempt from the placeholder ban because it legitimately
   // quotes defective code, but the verdict line is mandatory since it gates QA.
   'security-review.md': {
@@ -399,6 +442,56 @@ function findPlaceholders(content) {
 }
 
 /**
+ * Pull a `Label: value` status line out of a report body.
+ *
+ * The Stage 8 reports are structured plain-text blocks, not headed sections, so
+ * the value lives on the same line as its label rather than under a heading.
+ * Tolerates the emphasis and punctuation variants a model naturally produces:
+ *   Validation status: PASS
+ *   **Final status:** `PASS WITH USER-ACCEPTED FINDINGS`
+ *   - Validation status — N/A — no REST endpoints
+ *
+ * @param {string} content
+ * @param {string} label e.g. 'Validation status'
+ * @returns {{found: boolean, raw: string|null}}
+ */
+function extractStatusLine(content, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(
+    '^[^\\S\\n]*' +                    // leading indent
+    '(?:[-*+]\\s+)?' +                 // optional list bullet
+    '(?:\\*\\*|__)?\\s*' +             // optional bold open
+    escaped +
+    '\\s*(?:\\*\\*|__)?\\s*[:\\u2014-]\\s*' + // colon, em dash or hyphen separator
+    '(?:\\*\\*|__)?\\s*' +
+    '[`"\'\\[]?\\s*' +                 // optional quote/backtick/bracket
+    '([^\\n\\r]+)',                    // the rest of the line
+    'im'
+  );
+  const m = content.match(re);
+  if (!m) return { found: false, raw: null };
+  const raw = m[1].trim().replace(/[`"'\]]+$/, '').trim();
+  return { found: raw.length > 0, raw: raw || null };
+}
+
+/**
+ * Does a status value start with one of the permitted tokens?
+ *
+ * Prefix matching, deliberately: the skills' formats append rationale after the
+ * token ("PASS WITH USER-ACCEPTED FINDINGS — <decision>", "N/A — no REST
+ * endpoints"), and the token is what the gate turns on.
+ *
+ * @param {string} raw
+ * @param {string[]} passing
+ * @returns {boolean}
+ */
+function statusIsPassing(raw, passing) {
+  if (!raw) return false;
+  const normalized = raw.trim().toUpperCase();
+  return passing.some((token) => normalized.startsWith(token.toUpperCase()));
+}
+
+/**
  * Extract the declared `scope:` field from frontmatter or body.
  * @param {string} content
  * @returns {string|null}
@@ -499,6 +592,24 @@ function validateArtifact(artifactName, content) {
     }
   }
 
+  // --- Status-line requirement (Stage 8 completion reports) ---
+  if (schema.requireStatusLine) {
+    const { label, passing, hint } = schema.requireStatusLine;
+    const status = extractStatusLine(content, label);
+
+    if (!status.found) {
+      errors.push(
+        `No "${label}:" line found. ${artifactName} is a gate report — it must state ` +
+        `its outcome on a machine-readable line so the guard can enforce it. ${hint || ''}`.trim()
+      );
+    } else if (!statusIsPassing(status.raw, passing)) {
+      errors.push(
+        `"${label}: ${status.raw}" is not a passing outcome. Permitted: ` +
+        `${passing.join(', ')}. ${hint || ''}`.trim()
+      );
+    }
+  }
+
   // --- Scope field requirement ---
   if (schema.requireScopeField && !extractScope(content)) {
     errors.push(
@@ -570,6 +681,8 @@ module.exports = {
   PLACEHOLDER_PATTERNS,
   validateArtifact,
   extractVerdict,
+  extractStatusLine,
+  statusIsPassing,
   extractScope,
   extractHeadings,
   hasDiagram,

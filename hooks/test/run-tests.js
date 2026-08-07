@@ -696,6 +696,98 @@ function testTraceabilityGapScan() {
     `got ${JSON.stringify(blocked).slice(0, 300)}`);
 }
 
+function testStage8GateReports() {
+  console.log('\n\x1b[1mStage 8 gate reports — Swagger and security must exist and PASS\x1b[0m');
+
+  const schema = require(path.join(HOOKS, 'utils', 'artifact-schema.js'));
+
+  const swaggerBody =
+    '## Swagger Verification Report\n' +
+    'Detected framework: Go + Gin\n' +
+    'Swagger/OpenAPI library: swaggo v1.16\n' +
+    'Generation command: swag init\n' +
+    'Generated file location: docs/swagger.json\n' +
+    'Documentation URL: http://localhost:8080/swagger/index.html - 200\n' +
+    'Specification URL: http://localhost:8080/swagger/doc.json - 200\n' +
+    'Endpoint count: 12 / 12\n' +
+    'Schema count: 9\n';
+
+  const securityBody =
+    '## Security Report\n' +
+    'Total scans run: 3\n' +
+    '- SAST: gosec ./...\n' +
+    '- SCA: govulncheck ./...\n' +
+    '- secrets: gitleaks detect\n' +
+    'Findings per scan:\n' +
+    '- sast - 0 critical, 0 high\n' +
+    '- sca - 0 critical, 0 high\n' +
+    'Fixes applied: none required\n' +
+    'Rescans: 1 cycle, clean\n';
+
+  const v = (name, body) => schema.validateArtifact(name, body);
+
+  check('Swagger report with "Validation status: PASS" is ALLOWED',
+    v('swagger-verification.md', swaggerBody + 'Validation status: PASS\n').valid,
+    JSON.stringify(v('swagger-verification.md', swaggerBody + 'Validation status: PASS\n').errors));
+
+  check('Swagger "N/A - no REST endpoints" is ALLOWED (no HTTP surface)',
+    v('swagger-verification.md', swaggerBody + 'Validation status: N/A - no REST endpoints\n').valid,
+    'the skill\'s own exemption must remain writable');
+
+  check('Swagger "Validation status: FAIL" is DENIED',
+    !v('swagger-verification.md', swaggerBody + 'Validation status: FAIL - route missing\n').valid,
+    'a failing Swagger verification must not be persistable as complete');
+
+  check('Swagger report with NO status line is DENIED',
+    !v('swagger-verification.md', swaggerBody + 'Warnings: none\n').valid,
+    'a gate report without its machine-readable outcome is unenforceable');
+
+  check('Swagger status tolerates bold/backtick emphasis',
+    v('swagger-verification.md', swaggerBody + '**Validation status:** `PASS`\n').valid,
+    'models naturally emit emphasis; the gate must not be defeated by formatting');
+
+  check('Security report "Final status: PASS" is ALLOWED',
+    v('security-report.md', securityBody + 'Final status: PASS - none unresolved\n').valid,
+    JSON.stringify(v('security-report.md', securityBody + 'Final status: PASS\n').errors));
+
+  check('Security "PASS WITH USER-ACCEPTED FINDINGS" is ALLOWED',
+    v('security-report.md', securityBody + 'Final status: PASS WITH USER-ACCEPTED FINDINGS - user accepted MED-1\n').valid,
+    'explicit user acceptance is permitted by the skill');
+
+  check('Security report "Final status: FAIL" is DENIED',
+    !v('security-report.md', securityBody + 'Final status: FAIL - CRITICAL-1 open\n').valid,
+    'an unresolved critical/high must block completion');
+
+  check('Security report has no N/A escape hatch',
+    !v('security-report.md', securityBody + 'Final status: N/A\n').valid,
+    'nothing waives the Security Report - unlike Swagger, there is no no-op case');
+
+  // --- The Stop hook must actually block Stage 8 on these ---
+  setState({
+    currentStage: 'implementation', scope: 'backend', workflowStatus: 'in_progress',
+    approvedStages: ['implementation'], waitingForApproval: null, staleArtifacts: [],
+  });
+
+  const neither = runHook('stop.js', stopPayload(false));
+  check('Stop hook BLOCKS Stage 8 when neither gate report exists',
+    neither.decision === 'block' &&
+      /swagger-verification\.md/.test(neither.reason || '') &&
+      /security-report\.md/.test(neither.reason || ''),
+    `got ${JSON.stringify(neither).slice(0, 300)}`);
+
+  writeFixture('.ai/artifacts/swagger-verification.md', swaggerBody + 'Validation status: PASS\n');
+  const halfway = runHook('stop.js', stopPayload(false));
+  check('Stop hook still BLOCKS with only the Swagger report present',
+    halfway.decision === 'block' && /security-report\.md/.test(halfway.reason || ''),
+    `got ${JSON.stringify(halfway).slice(0, 300)}`);
+
+  writeFixture('.ai/artifacts/security-report.md', securityBody + 'Final status: PASS\n');
+  const both = runHook('stop.js', stopPayload(false));
+  check('Stop hook ALLOWS Stage 8 once both gate reports exist',
+    both.decision !== 'block',
+    `got ${JSON.stringify(both).slice(0, 300)}`);
+}
+
 // ---------------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------------
@@ -722,6 +814,7 @@ function main() {
     testStopHook();
     testStaleCascade();
     testTraceabilityGapScan();
+    testStage8GateReports();
   } finally {
     // No backup or restore is needed: nothing outside the sandbox was touched.
     destroySandbox();
