@@ -6,7 +6,7 @@ Use this checklist to validate PRD completeness before proceeding to a technical
 
 - [ ] **All required sections are complete** - No empty or placeholder sections
 - [ ] **No [NEEDS CLARIFICATION] markers remain** - All markers replaced with content
-- [ ] **Template structure preserved** - No sections added, removed, or reorganized
+- [ ] **Template structure preserved** - No sections added, removed, or reorganized (if split per split.md, this applies across the file set as a whole — see Split-File Consistency below)
 - [ ] **Every section that maps to another is consistent** - MVP Scope ↔ Must Have Features, Future Scope ↔ Should/Could Have, Out of Scope ↔ Won't Have (see Cross-Section Consistency below)
 - [ ] **Domain Invariants Gate was run** - The 5-8 domain table-stakes items were listed (see SKILL.md), and each has either a requirement/NFR or an explicit Out-of-Scope entry with a stated reason
 - [ ] **Engineering Digest is populated and accurate** - Features, hard numbers, and blockers listed there match the detailed sections; no persuasive narrative leaked into it
@@ -42,6 +42,8 @@ Use this checklist to validate PRD completeness before proceeding to a technical
 - [ ] **Every flow has at least one error/exception path** - What happens when something goes wrong, and how the user recovers
 - [ ] **Every flow states its postcondition/success state** - Clear definition of "done"
 - [ ] **Flows are written in plain, user-facing language** - No UI component names, no system-internals language
+- [ ] **Every flow has a Mermaid `flowchart TD` diagram** - Not just the point-by-point breakdown
+- [ ] **The diagram and the points are consistent** - Same steps, same branches, same error paths in both forms; neither contains something the other doesn't
 
 ### Requirements Quality
 - [ ] **All MoSCoW categories addressed** - Must/Should/Could/Won't all defined
@@ -53,6 +55,7 @@ Use this checklist to validate PRD completeness before proceeding to a technical
 - [ ] **No contradictions between sections** - Consistent throughout
 - [ ] **Non-Functional Requirements are outcome-based** - Performance/reliability/security/scalability described as user-observable targets, never as a named technology or mechanism
 - [ ] **Every NFR number has a stated basis** - Or carries the `[PROPOSED: pending eng confirmation]` marker; no invented numbers presented as settled
+- [ ] **Every NFR number was gathered as an MCQ with a recommended option** - Not asked or answered as a bare open-ended number (see template.md → Non-Functional Requirements → Interview rule)
 
 ### Success Criteria
 - [ ] **KPIs defined for adoption** - User acquisition/activation targets
@@ -89,6 +92,23 @@ Use this checklist to validate PRD completeness before proceeding to a technical
 - [ ] **A new team member could understand this PRD** - Self-contained and clear
 - [ ] **Jargon is defined** - Domain terms explained
 - [ ] **Acronyms are expanded** - First use includes full form
+
+## Split-File Consistency (Only If the PRD Was Split Per split.md)
+
+- [ ] **Split Completeness Check was run** - Every required section from template.md was located somewhere in the file set (index or a feature file), every feature discussed during drafting has its own file or an explicit Out-of-Scope entry, and nothing was silently dropped in the move from single-file to split — see split.md → Split Completeness Check
+- [ ] **Every file the index requires exists** - Check `product-requirements.md`'s frontmatter `parts:` list against what's actually on disk; nothing listed is missing, nothing extra is undeclared
+- [ ] **Every feature file has the breadcrumb link back to the index** - `[← Back to PRD index](product-requirements.md)` as the first line, before any heading
+- [ ] **The index's table of contents links every feature file** - And the links resolve to the correct filenames
+- [ ] **No feature's content is split across two files** - Each feature owns its personas, flows, functional/non-functional requirements, edge cases, and scope tag entirely within its assigned file (or its own `-2.md` continuation, split only at a whole Flow/Business Rule/Edge Case boundary)
+- [ ] **No fact is restated in two files** - Cross-file references use links (`See [Payments](product-requirements-payments.md#functional-requirements)`), not paraphrase; check especially Engineering Digest (index) against each feature file's Functional Requirements, and Estimation Blockers against Open Questions
+- [ ] **[NEEDS CLARIFICATION] markers are absent from every file** - Not just the index
+- [ ] **Domain Invariants Gate, Reality-Check Gate, and Multi-Angle Final Validation were run across all files as one PRD** - Not re-run independently per file, and not skipped for any file
+- [ ] **Output/status reporting listed every file produced** - A split PRD is never presented as complete with only the index shown
+
+## Interview Process Check
+
+- [ ] **Every question asked during drafting was posed as options with one recommendation** - No bare open-ended question was sent; even numeric/date/name questions offered 2-4 candidate values with one flagged Recommended
+- [ ] **The user's actual answers are reflected, not the recommendations by default** - Where the user overrode a recommendation, the override is what's in the document
 
 ## Cross-Section Consistency
 

@@ -1,6 +1,6 @@
 # Example: Well-Structured PRD
 
-This example demonstrates a properly completed PRD, using the current template structure, for reference. Not every section is fully expanded (to keep this example readable) — a real PRD would flesh out all of them.
+This example demonstrates a properly completed PRD, using the current template structure, for reference. Not every section is fully expanded (to keep this example readable) — a real PRD would flesh out all of them. This example is short enough to stay a single file; see [split.md](split.md) for how a larger PRD covering more personas, flows, or features would be broken into linked files instead.
 
 ## Engineering Digest (Example)
 
@@ -111,6 +111,29 @@ Payment is confirmed to both parties, and the transaction appears in Sarah's act
 **Related Edge Cases**
 Declined payment method; request timeout; split-payment partial completion (see Edge Cases).
 
+**Flow Diagram**
+
+```mermaid
+flowchart TD
+    Start([Sarah finishes a service, customer present]) --> Enter[Sarah enters amount owed]
+    Enter --> Confirm[System displays amount for confirmation]
+    Confirm --> Request[Sarah taps 'Request Payment']
+    Request --> Method{Delivery method?}
+    Method -->|Text/code| Send[System sends request]
+    Method -->|No smartphone - Branch A| Tap[Customer taps card to Sarah's phone]
+    Method -->|Split - Branch B| Split[System generates one request per payer]
+    Send --> CustomerConfirms[Customer confirms on own device]
+    Split --> CustomerConfirms
+    Tap --> Process[System processes payment]
+    CustomerConfirms --> Process
+    Process --> Notify[System notifies both parties within 30s]
+    Notify --> Success([Sarah sees 'Paid' confirmation])
+    Notify -->|Payment declined| Declined[System notifies Sarah with reason]
+    Declined --> Retry[Sarah requests alternate method or marks as owed]
+    Send -->|No response in 5 min| Timeout[System cancels request, notifies Sarah]
+    Timeout --> Resend[Sarah resends or collects another way]
+```
+
 ---
 
 ## Functional Requirements (Example)
@@ -125,6 +148,9 @@ Declined payment method; request timeout; split-payment partial completion (see 
   - [ ] IF a payment request goes 5 minutes without customer action, THEN THE SYSTEM SHALL cancel the request and notify Sarah
 
 ## Non-Functional Requirements (Example)
+
+> Gathered via MCQ during the interview, e.g.: "How fast should payment confirmation reach both parties?" — A) <10s (aggressive, likely needs eng investment) · B) <30s **(Recommended — matches card-network confirmation SLA)** · C) <60s (safer commit, weaker experience) · D) Something else. The user accepted the recommendation, hence the sourced 30s figure below.
+
 - **Performance:** Payment confirmation must reach both parties within 30 seconds of customer action (based on card-network confirmation SLA)
 - **Reliability:** Payment success rate must exceed 98% under normal network conditions (based on industry-standard card-processing benchmarks)
 - **Usability:** A first-time user must be able to complete a payment request without instructions [PROPOSED: pending usability-testing confirmation]
