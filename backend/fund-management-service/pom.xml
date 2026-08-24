@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.0</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.thinq</groupId>
+  <artifactId>fund-management-service</artifactId>
+  <version>0.1.0</version>
+  <name>Fund Management System</name>
+  <description>The money surface of a broking account</description>
+
+  <properties>
+    <!-- Java 25: virtual threads carry the I/O-bound vendor calls in `integration`, and
+         records carry the value types the LLD specifies throughout. Both landed in 21; 25 is
+         the LTS the Spring Boot 4.1 line is built and tested against. -->
+    <java.version>25</java.version>
+    <pit.skip>true</pit.skip>
+    <pit.verbose>false</pit.verbose>
+    <resilience4j.version>2.4.0</resilience4j.version>
+    <springdoc.version>3.1.0</springdoc.version>
+
+    <!-- Security pins. Each clears an advisory the 4.1.0 BOM would otherwise leave open; the
+         scan that produced them is .ai/artifacts/security-report.md. Change these only against
+         a fresh scan: lowering one re-opens a named advisory.
+
+         The 3.5.x pin set was retired with the platform upgrade rather than carried forward.
+         Every one of those pins raised a 3.5-era version to a fixed one, and the 4.1.0 BOM
+         already selects at or above each: Spring Framework 7.0.8, Spring Security 7.1.0,
+         Tomcat 11.0.22 (the 10.1.x line the CRITICAL advisories applied to is not used at all),
+         Micrometer 1.17.0, Logback 1.5.34, commons-lang3 3.20.0, json-smart 2.6.0, xmlunit2
+         2.11.0, AssertJ 3.27.7. Holding a 3.5-era pin against a 4.1 BOM pins DOWNWARD, which is
+         the failure mode these entries exist to prevent.
+
+         Jackson is the one that would have been silently destructive. `jackson-bom.version` no
+         longer names the 2.x line — in Boot 4 it selects Jackson 3 (3.1.4) and the 2.x line is
+         `jackson-2-bom.version` (2.21.4). The old comment required Jackson 2 to be at or above
+         2.21.4; the BOM now satisfies that on its own, and carrying the 2.18.9 value across
+         would have downgraded Jackson 3 to a version that does not exist. -->
+    <postgresql.version>42.7.12</postgresql.version>
+    <log4j2.version>2.25.5</log4j2.version>
+
+    <!-- Both Jackson lines are on this classpath and both needed a bump. The 4.1.0 BOM selects
+         Jackson 3.1.4 and Jackson 2.21.4; the scan of the upgraded tree returned four MODERATE
+         advisories against them (GHSA-5gvw-p9qm-jgwh on both lines, GHSA-5jmj-h7xm-6q6v and
+         GHSA-mhm7-754m-9p8w on the 2.x line), all fixed in 3.1.5 and 2.21.5.
+
+         Jackson 2 is here even though nothing in this service calls it: springdoc's swagger-core
+         still reads and writes the OpenAPI model with it. It is a real part of the resolved tree
+         and is scanned as one, so it is pinned as one. -->
+    <jackson-bom.version>3.1.5</jackson-bom.version>
+    <jackson-2-bom.version>2.21.5</jackson-2-bom.version>
+
+    <!-- Test scope, and pinned anyway. Testcontainers pulls commons-compress 1.24.0, which
+         carries GHSA-4265-ccf5-phj5 (CVSS 6.7) and GHSA-4g9r-vxhx-9pgx (CVSS 5.9) — both resource
+         exhaustion on malformed archive input, both fixed in 1.26.0. It never reaches the jar, so
+         the pin buys no production safety; it keeps the dependency gate at zero, so the next real
+         advisory is visible instead of arriving in a list that already has entries in it. -->
+    <commons-compress.version>1.26.0</commons-compress.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Not managed by the Spring Boot BOM, so a property alone would not move it. -->
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>${commons-compress.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+
+    <!-- The HTTP surface. Added with the first controllers; the earlier passes deliberately
+         had none, which is why swagger-verification.md read N/A until now. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- Bean Validation for the edge half of LLD §4.3's shape-at-the-edge, rule-in-the-domain
+         split. A rule enforced only here is a rule a second caller can skip, so this covers
+         shape only and every domain rule stays in the domain. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <!-- OpenAPI generated FROM the controllers rather than hand-written beside them. A
+         hand-maintained spec drifts from the code silently, and the Stage 8 Swagger gate exists
+         to catch exactly that drift. -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+      <version>${springdoc.version}</version>
+    </dependency>
+
+    <!-- Micrometer, matching the estate's existing instrumentation. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+    </dependency>
+
+    <!-- Resilience4j for the circuit breaker in AbstractVendorGateway. Chosen over a
+         hand-rolled breaker because a breaker is a state machine plus metrics plus a
+         half-open probe, and all three are easy to get subtly wrong on a money path. -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-circuitbreaker</artifactId>
+      <version>${resilience4j.version}</version>
+    </dependency>
+
+    <!-- Declared directly rather than inherited through Flyway's TOML dataformat: the
+         vendor gateways parse JSON, and a dependency they need must not arrive by
+         accident from a library that could drop it. Version comes from the pinned
+         Jackson 3 BOM the platform selects. -->
+    <dependency>
+      <groupId>tools.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <!--
+      The starter, not flyway-core on its own. Spring Boot 4 moved FlywayAutoConfiguration out of
+      the single spring-boot-autoconfigure jar into a spring-boot-flyway module that only this
+      starter pulls in. With the libraries present but that module absent, the service starts
+      cleanly, logs nothing about migrations, and answers 500 on the first query against a table
+      that was never created — `spring.flyway.enabled: true` in application.yml has nothing to
+      read it. Nothing fails loudly, which is why this is a dependency and not a setting.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!--
+      HIGH-1 from the Stage 11 security review. The service previously performed no authentication of
+      its own and relied entirely on an upstream gateway that is not configured, asserted or named
+      anywhere in this repository. A money API needs the control to exist in its own artifact.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- Rate limiting, from the same finding. Same library as the circuit breaker already in use. -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-ratelimiter</artifactId>
+      <version>${resilience4j.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- MockMvc's test auto-configuration. Spring Boot 4 split the single
+         spring-boot-test-autoconfigure jar into per-technology modules, so
+         `spring-boot-starter-test` alone no longer puts @AutoConfigureMockMvc on the classpath —
+         the API tests that drive the controllers without a socket need this starter by name. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!--
+      A real PostgreSQL for the tests that need one. The rules this system enforces in schema
+      rather than in code - Rule W4's one-open-request partial index and Rule A6's
+      gateway-reference uniqueness - cannot be verified against a stub repository, because a stub
+      has no constraints to violate. Versions come from the Spring Boot parent's Testcontainers
+      BOM so they move with the platform rather than drifting independently.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- No repackage goal: this module has no application class in this pass. Stage 1-2
+           delivers value types, migrations and one vendor base class; the runnable service
+           arrives with the first endpoint, which is not in scope here. -->
+      <!--
+      Produces the executable jar. Its absence was found by trying to run the service: `mvn package`
+      built a 286 KB plain jar with no main manifest, so the artifact this pipeline had been treating
+      as deployable could not be started at all. Nothing in the test suite could have caught that —
+      tests run against target/classes and never touch packaging.
+    -->
+    <plugin>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-maven-plugin</artifactId>
+      <executions>
+        <execution>
+          <goals>
+            <goal>repackage</goal>
+          </goals>
+        </execution>
+      </executions>
+    </plugin>
+
+    <!--
+      Mutation testing. Not bound to a phase: it re-runs the suite once per surviving mutant, so it
+      is minutes rather than seconds and belongs in a deliberate run, not in every build. Invoke it
+      with: mvn test-compile org.pitest:pitest-maven:mutationCoverage -Dpit.skip=false
+
+      Line coverage says a line executed. It does not say an assertion would have noticed the line
+      being wrong, and on this codebase that difference is not hypothetical: a mutation swapping
+      which input feeds ADDED_TODAY and which feeds CHARGES_UNPOSTED survived the entire property
+      suite, because both terms are negative and the total was unchanged.
+    -->
+    <plugin>
+      <groupId>org.pitest</groupId>
+      <artifactId>pitest-maven</artifactId>
+      <version>1.25.9</version>
+      <dependencies>
+        <dependency>
+          <groupId>org.pitest</groupId>
+          <artifactId>pitest-junit5-plugin</artifactId>
+          <version>1.2.3</version>
+        </dependency>
+      </dependencies>
+      <configuration>
+        <skip>${pit.skip}</skip>
+        <verbose>${pit.verbose}</verbose>
+        <targetClasses>
+          <param>com.thinq.fms.derivation.*</param>
+          <param>com.thinq.fms.platform.money.*</param>
+          <param>com.thinq.fms.movement.*</param>
+          <param>com.thinq.fms.ledgerview.*</param>
+          <param>com.thinq.fms.messaging.*</param>
+          <param>com.thinq.fms.integration.communication.*</param>
+          <param>com.thinq.fms.integration.juspay.*</param>
+        </targetClasses>
+        <excludedTestClasses>
+          <!--
+            The container-backed tests. Each mutant would pay the Testcontainers startup and the
+            database round trips, which turns a minutes-long run into an hours-long one for
+            classes whose logic is already covered by the in-memory tests above.
+          -->
+          <param>com.thinq.fms.persistence.*</param>
+        </excludedTestClasses>
+        <outputFormats>
+          <param>HTML</param>
+          <param>XML</param>
+        </outputFormats>
+        <timestampedReports>false</timestampedReports>
+      </configuration>
+    </plugin>
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

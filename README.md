@@ -1,314 +1,72 @@
-# Strict PRD → Production Pipeline
+# FMS — Development Handover
 
-A locked, gate-enforced SDLC pipeline for **Claude Code**. Clone it, open Claude
-Code, type `/prd-to-prod <your feature>`, and every feature is driven from
-requirements to tested, security-reviewed production code through 11 mandatory
-stages — each halting for your explicit approval, each artifact validated by
-deterministic hooks the model cannot talk its way past.
+Fund Management System. Eight requirement files, 60 owned requirements registered as 72,
+a complete instrumentation spec and a working prototype.
 
-## Quick start
+**Phase 1 has no open blocker. Start there.**
 
-```sh
-git clone -b claude-code https://github.com/Thinq-Money/prd-to-prod.git
-cd prd-to-prod
-claude                      # open Claude Code in the repo root
-```
-
-> **Branch matters.** `claude-code` is the Claude Code build. `main` is the
-> original Google Antigravity build, where none of these guards execute under
-> Claude Code. Make sure you are on `claude-code`.
-
-Then, in Claude Code:
-
-```
-/prd-to-prod add document sharing with expiring links
-```
-
-That's the whole setup. **No `npm install`, no build step, no dependencies** —
-the hooks and dashboard use only Node built-ins.
-
-### Prerequisite: Node.js
-
-**macOS does not ship with Node.** If it is missing, every hook fails to launch
-and the pipeline runs with **no enforcement at all** while appearing to work
-normally — the worst possible failure mode for this repo.
-
-```sh
-node --version      # if this errors:
-brew install node
-```
-
-Minimum Node 12 (the guards use nothing newer); Node 18+ LTS recommended.
-
-A `SessionStart` hook checks this for you on every session — written in POSIX
-`sh` precisely so it still runs when Node is absent. If Node is missing you will
-see a loud `*** WORKFLOW GUARDS ARE NOT RUNNING ***` banner rather than silent
-non-enforcement.
-
-### The greeting
-
-Open Claude Code in this repo on any machine and the same hook prints a banner
-with the commands and exactly where the pipeline stands:
-
-```
-──────────────────────────────────────────────────────────────
-  PRD → Production Pipeline
-  Locked 11-stage SDLC · 13 skills · guards enforced at write time
-──────────────────────────────────────────────────────────────
-
-  /prd-to-prod <feature>   start, or resume where you left off
-  /workflow-status         current stage, pending gate, blockers
-  /workflow-reset          back to Stage 1 (archives, never deletes)
-
-  node hooks/test/run-tests.js     prove the guards fire (63 checks)
-  node .ai/dashboard/server.js     live dashboard
-
-  Every stage HALTS for your approval. Artifacts too thin, missing a
-  required section, or containing TBD are denied at write time.
-
-  ▸ Pipeline not started.
-  ▸ Run  /prd-to-prod <feature>  to begin.
-```
-
-Mid-run the last two lines become the live position, e.g.
-`Stage 3 — High-Level Design (Unified System) · system-hld-designer · scope fullstack.`
-followed by `AWAITING YOUR APPROVAL on hld.md`. It fires on startup, resume and
-`/clear` — not on every compaction.
-
-**Requirements:** macOS, Node.js, and Claude Code. Nothing else.
-
-### Verify the guards are live (recommended first step)
-
-```sh
-node hooks/test/run-tests.js
-```
-
-Expected: `Result: 63 passed, 0 failed`. Each hook runs as a real child process
-against synthetic Claude Code payloads. If this passes, enforcement is genuinely
-active — not merely documented. Takes about 5 seconds and leaves no trace.
+Packaged 20 Aug 2026. Standalone: no git remote, no build step, no dependencies.
 
 ---
 
-## Your first run — what to expect
+## Read in this order
 
-The pipeline is deliberately slow and interrogative at the start. That is the
-design, not a malfunction.
-
-**1. It will ask you questions before writing anything.**
-Stage 1 is forbidden from producing a generic PRD. `prd-generator-split` will ask about
-personas, edge cases, failure modes, acceptance criteria — and crucially about
-**scope**: `backend`, `frontend`, or `fullstack`. That answer is a hard switch
-that decides which sub-stages exist for the rest of the run. Getting it wrong
-wastes an entire sub-stage, so answer deliberately.
-
-**2. It will stop at every stage and wait for you.**
-After each artifact, you get an interactive prompt:
-
-| Choice | Meaning |
+| Folder | What |
 |---|---|
-| **APPROVE** | Stage complete, proceed |
-| **ITERATE** | Re-run this stage's skill with your stated changes |
-| **REJECT** | Halt or roll back |
-| **JUMP** | Go to a stage you name explicitly |
-| *Other →* CANCEL | Abort the workflow |
+| **01-start-here** | `HANDOVER.md` — what is ready, what is gated, who owns each gate. Open `handover.html` in a browser for the same thing laid out by phase |
+| **02-requirements** | `product-requirements.md` is the spine: the register of all 72 requirements and the file that owns each. The seven feature files sit beside it — read the one that owns what you are building |
+| **03-instrumentation** | What FMS sends to CleverTap and the funnels those events answer. **Not optional** — see the warning below |
+| **04-prototype** | Working reference. `derive()` in `app.js` is the single definition of every balance; `metrics()` in `dashboard.js` the single definition of every dashboard figure |
+| **05-dependencies** | Documents and interfaces FMS is subordinate to. `thinq/` holds the internal specs it registers against; `vendor-api/` holds the external API references it calls |
 
-Nothing advances without your click. An artifact already sitting on disk is
-**never** treated as approval.
+## One trap
 
-**3. It will sometimes refuse to write.**
-If an artifact is too thin, missing a required section, or contains `TBD`, the
-hook denies the write and tells the model exactly why. You will see it correct
-itself and retry. This is the quality bar doing its job — do not disable it.
+`02-requirements/product-requirements.md` once carried a Tracking Requirements table listing
+twenty-one event names. **It was replaced on 19 Aug 2026 with a pointer to
+03-instrumentation.** Eight of those rows sent account balances as event properties, which
+the same document's own privacy requirement forbids. If you are reading a copy that still
+lists those events, it is stale — build from 03-instrumentation.
 
-**4. It will refuse to stop early.**
-If you try to end the turn mid-stage, the Stop hook blocks and states what is
-outstanding. It always allows stopping when it is *your* turn to approve.
+## Run the prototype
 
-### Resuming later
-
-State lives in `.ai/state/workflow-state.json`. Just reopen Claude Code and run
-`/prd-to-prod` with no arguments — it reads the state and resumes at the recorded
-stage. Check where you are at any time with `/workflow-status`.
-
-### Starting over
-
-```
-/workflow-reset
+```bash
+cd 04-prototype
+python3 -m http.server 5173 --bind 127.0.0.1
 ```
 
-Archives existing artifacts to `.ai/examples/` and resets to Stage 1. Nothing is
-ever deleted.
+`index.html` is the funds page, `dashboard.html` the money-movement dashboard.
+`./test.sh` asserts the arithmetic against the PRD; `./dashboard-test.sh` asserts the
+funnel invariants. No build step, no dependencies, no network calls.
 
-## Commands
+## Four gates, four owners
 
-| Command | What it does |
-|---|---|
-| `/prd-to-prod <feature>` | Start or resume the pipeline |
-| `/workflow-status` | Current stage, pending gate, blockers |
-| `/workflow-reset` | Reset to Stage 1 (archives, never deletes) |
-| `node .ai/dashboard/server.js` | Live browser dashboard |
-| `node hooks/test/run-tests.js` | Prove the guards fire |
-
-## The pipeline
-
-Scope (`backend` / `frontend` / `fullstack`) is resolved at Stage 1 and gates **Stage 5
-only**. Stage 3 is a single unified system design that always runs.
-
-| Stage | Skill | Produces |
+| Gate | Phase | Owner |
 |---|---|---|
-| 1 Requirement Analysis | `prd-generator-split` | `product-requirements.md`, `traceability.md` |
-| 2 PRD Review | `prd-reviewing` | `prd-review.md` |
-| 3 HLD — Unified System | `system-hld-designer` | `hld.md`, `tech-stack.md` |
-| 4 HLD Review | `hld-reviewer` | `hld-review.md` |
-| 5a LLD Backend | `backend-lld-architect` | `lld-backend.md` |
-| 5b LLD Frontend | `frontend-lld-designer` | `lld-frontend.md` |
-| 5c LLD Consistency | *(orchestrator)* | `lld.md` |
-| 6 LLD Review | `lld-reviewer` / `frontend-lld-review` | `lld-review.md` |
-| 7 Planning | `edited-plan-skill` | `planning.md`, `tasks.json` |
-| 8 Implementation | `trading-platform-coding` | source code, `swagger-verification.md`, `security-report.md` |
-| 9 Code & Arch Review | `code-reviewer` | `review.md` |
-| 10 QA & Browser | `full-stack-test-suite` | `test-report.md`, `browser-report.md` |
-| 11 Security Review — final gate | `security-review` | `security-review.md` |
+| Withdrawal authentication — no out-of-band control today | 3 | Product owner with **authentication** |
+| Trading and settlement calendar | 3 | Product owner with **compliance** |
+| Comms orchestration — sits in front of SMS template registration, the slowest item in the release | 2 | Product owner with **engineering** |
+| Debit interest rate | 4 | **Finance** with TechExcel |
 
-Full spec: **`.ai/workflows/prd-to-prod.md`**.
+Full routing, and what the dev team owes that is in no PRD, in `01-start-here/HANDOVER.md`.
 
-### Why security review runs last
+## External APIs
 
-Stage 11 is the pipeline's terminal condition — nothing runs after it. It reviews
-the code in the exact state QA exercised, including every fix QA forced, so no
-later change can invalidate the review. A `CRITICAL` or `HIGH` finding routes back
-to Stage 8, and because that fix invalidates QA too, **Stage 10 must re-run and be
-re-approved before Stage 11 is re-entered**.
+`05-dependencies/vendor-api/` carries one spreadsheet per upstream provider, each with the
+same three sheets — the call list, its input parameters, its output parameters.
 
-It is a static, code-and-contract review — it never probes a running system.
-Coverage: server-side authorization at object, property and function level;
-input validation at trust boundaries; secrets and PII in logs, errors and
-responses; dependency risk; Rust `unsafe`/concurrency/FFI/cancellation hazards
-where in scope; and a systematic OWASP API Security Top 10 walk of every REST
-endpoint against its OpenAPI contract, including the boring CRUD ones where
-object-level authorization gaps actually hide.
+| File | Covers |
+|---|---|
+| `juspay_api_reference.xlsx` | Juspay payment gateway. 113 REST calls |
+| `kambala_noren_api_reference.xlsx` | Kambala Noren CAPI, the OMS. 52 calls; 16 fully specified, the rest name-only |
 
-**Approving open findings requires a name.** If you APPROVE a security review that
-still carries findings, a second prompt asks whose name the approval record
-carries — offering your `git config user.name` but never filling it in silently.
-The skill then appends an `## Approval Record` to `security-review.md` (approver,
-date, verdict, each accepted finding, stated basis) and a note-row to
-`traceability.md`. A clean zero-finding report skips the prompt.
+The Noren file is a C++ SDK, not REST, so its Method and Endpoint columns carry the call
+type and the broker lane instead. Four response structs — `tsPayinStatusRespParams`,
+`tsPayoutStatusRespParams`, `tsFundsUpdatesParams` and `tsFundsReportParams` — are named by
+the vendor PDFs but never defined in them. That is the whole read side of money movement.
+Closing it needs `include/noren_cpp_data_structs.h` from the CAPI package.
 
-## What makes this different from "just prompting well"
+## What is not in this package
 
-The rules are not suggestions in a prompt the model may drift away from. Three
-Claude Code hooks enforce them at runtime.
-
-### `hooks/pre-tool.js` — denies bad writes before they land
-
-- **Depth floors.** The unified HLD under 200 lines is rejected; an LLD under 200. The
-  floors sit far below what a serious artifact needs (see `.ai/examples/` — the
-  reference PRD is 686 lines against a floor of 120). They catch laziness; they
-  do not define the target.
-- **Mandatory sections.** No sequence diagrams in an HLD → denied. No error
-  handling section in an LLD → denied.
-- **Placeholder ban.** `TBD`, `<placeholder>`, `[fill in]`, `// ... rest` in a
-  design document → denied.
-- **Gate reports must pass, not merely exist.** Stage 8 writes
-  `swagger-verification.md` and `security-report.md`; the Stop hook will not let
-  the turn end without both, and a write stating `Validation status: FAIL` or
-  `Final status: FAIL` is denied. Recording a failed gate as a finished task is
-  the exact outcome those files exist to prevent. A task with no HTTP surface
-  still writes the Swagger report with `N/A — no REST endpoints`; nothing waives
-  the Security Report.
-- **Ownership.** Stage 1 cannot write the Stage 5 artifact.
-- **Verdict gate.** A downstream artifact cannot be written while its gating
-  review says `CHANGES_REQUESTED`. The chain: `prd-review.md` gates the HLD,
-  `hld-review.md` gates the LLDs, `lld-review.md` gates planning, and `review.md`
-  gates both QA and the security review.
-
-### `hooks/post-tool.js` — tracks integrity
-
-SHA-256 checksums, version increments, scope-aware staleness cascade, split-PRD
-completeness, verdict extraction, and a running report of which traceability
-cells are still owed.
-
-### `hooks/stop.js` — prevents finishing early
-
-Blocks the turn from ending while in-scope artifacts are missing, PRD parts are
-incomplete, artifacts are stale, the current stage is unapproved, or — at Stage 9
-— any in-scope requirement still has an empty coverage cell before the handoff to
-QA.
-
-All three **fail open**: a bug in a guard logs loudly and allows the operation. A
-broken hook must never brick a teammate's session.
-
-## Reviewer verdicts
-
-Every review artifact must carry a machine-readable verdict line:
-
-```
-**Verdict:** APPROVED
-```
-
-Valid values: `APPROVED`, `APPROVED_WITH_CONDITIONS`, `CHANGES_REQUESTED`.
-
-The reviewers' own wording is accepted too and normalised automatically —
-`Ready for Implementation`, `Ready with Conditions`, `Not Ready`, `Approve`,
-`Approve with required changes`, `Do not build from this yet`. Anything genuinely
-unrecognised is rejected at write time, which is what makes the hard-blocking rule
-enforceable rather than aspirational.
-
-Five artifacts carry a verdict: `prd-review.md`, `hld-review.md`, `lld-review.md`,
-`review.md` and `security-review.md`. The QA reports do not — which means "QA must
-be approved before the security review" is enforced by the workflow rules and the
-Stop hook's stage-approval check, not by the verdict validator. Adding a verdict
-line to the QA report schema would close that gap if you want it mechanical.
-
-## Layout
-
-```
-CLAUDE.md                      # auto-loaded; makes the workflow the default behavior
-.claude/
-  settings.json                # hook registration
-  commands/                    # /prd-to-prod, /workflow-status, /workflow-reset
-  skills/                      # the 13 LOCKED skills — the only discoverable ones
-.ai/
-  workflows/prd-to-prod.md     # authoritative spec
-  artifacts/                   # generated stage artifacts
-  state/workflow-state.json    # pipeline state (gitignored, per-developer)
-  examples/                    # archived reference run — read this for the quality bar
-  dashboard/                   # zero-dependency live dashboard
-  skills/                      # DISABLED skills, retained for reference only
-  stages/                      # legacy stage skills, retained for reference only
-hooks/
-  pre-tool.js  post-tool.js  stop.js
-  utils/                       # config, stage-keys, hook-io, artifact-schema, traceability
-  validators/                  # ownership, verdict, schema, JSON, markdown, transitions
-  test/run-tests.js            # 51-assertion guard verification
-docs/specs/                    # PRDs live here
-```
-
-## Team notes
-
-- **`workflow-state.json` is gitignored.** Each developer runs their own pipeline;
-  a tracked state file would conflict on every stage transition.
-  `workflow-state.template.json` is committed, and the state file is recreated
-  from defaults on first read.
-- **Artifacts are never deleted.** Stale ones are superseded and re-approved;
-  `/workflow-reset` archives rather than removes.
-- **Never edit a skill to accommodate tooling.** The locked skills were relocated
-  byte-for-byte during the Claude Code port, and runtime or path concerns belong
-  in the hooks — `hooks/utils/config.js` recognises artifacts under
-  `.ai/artifacts/`, `.ai/stages/**` and `docs/specs/**`. Skills do get updated
-  when their *content* changes (a new mandatory gate, a new required output), but
-  a hook denying a write is never a reason to rewrite the skill that produced it.
-- **Tuning strictness:** depth floors and required sections live in
-  `hooks/utils/artifact-schema.js`. Raise them if shallow artifacts still get
-  through; lower them if a genuinely small feature is being blocked.
-
-## Porting history
-
-Originally built for the Google Antigravity runtime, where none of the guards
-actually executed under Claude Code — wrong hook directory, wrong tool matchers,
-wrong I/O schema, and skills the runtime could not discover.
-`.ai/CLAUDE-CODE-PORT-CHECKLIST.md` documents the full audit and every change,
-including several bugs that had silently disabled entire checks.
-
-The Antigravity config (`.agents/hooks.json`) is retained on disk but inert.
+Screenshots, backups and the audit working files. The two published artifacts —
+the event spec and the audit — are linked from `HANDOVER.md` and are private to the
+Thinq account.

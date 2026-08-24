@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FMS — Money movement</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>₹</text></svg>">
+<link rel="stylesheet" href="styles.css?v=62">
+<link rel="stylesheet" href="dashboard.css?v=1">
+</head>
+<body>
+
+<!-- ============ demo chrome ============
+     Controls that belong to the prototype, not to the product. Kept in the
+     black strip for the same reason the funds page does it: so nobody mistakes
+     a demo switch for a feature. -->
+<div class="scenarios">
+  <span class="scen-label">Period</span>
+  <div class="scen-btns" id="periods"></div>
+  <span class="scen-range" id="range" hidden>
+    <input type="date" id="rFrom" aria-label="Range starts"><span class="arrow">→</span>
+    <input type="date" id="rTo" aria-label="Range ends">
+  </span>
+  <button class="scen-comms" id="srvOnly" type="button">Assume no third-party analytics</button>
+  <a class="scen-link" href="index.html">← Funds prototype</a>
+  <span class="scen-note">Synthetic population, one fixed seed — every figure is reproducible</span>
+</div>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand"><span class="mark">₹</span> <b>FMS</b> <span class="brand-sub">Money movement</span></div>
+    <nav class="nav tabs" id="tabs"></nav>
+    <div class="who"><b id="asOf"></b>payins &amp; payouts only</div>
+  </div>
+</header>
+
+<main class="wrap dash">
+  <h1 class="sr-only">Money-movement quality and funnel</h1>
+  <section class="kpis" id="kpis" aria-label="Launch thresholds"></section>
+  <section id="defPanel" hidden></section>
+  <section id="panel"></section>
+
+  <footer class="dfoot">
+    <p><b>What this measures, and what it does not.</b> Payins and payouts only — the movements with a
+    lifecycle, an external counterparty and a way to fail. Trading obligations and charges post or they do
+    not; they have no funnel and are not on this page.</p>
+    <p><b>Every figure here is derived.</b> One array of movements, one <code>metrics()</code> function.
+    Nothing on this page is stored or hardcoded — the same rule <code>app.js</code> applies to balances.</p>
+    <p><b>The reason codes are not invented.</b> They are the outcome ids the funds flow already emits, so
+    the dashboard can only report failures the product is actually able to produce.</p>
+  </footer>
+</main>
+
+<script src="dashboard.js?v=1"></script>
+</body>
+</html>

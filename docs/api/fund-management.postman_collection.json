@@ -1,0 +1,973 @@
+{
+ "info": {
+  "name": "Fund Management System v1",
+  "description": "The money surface of a broking account. Seven endpoints under /api/v1/funds.\n\nSet the `baseUrl`, `username` and `password` collection variables before running anything. Every request inherits HTTP Basic auth from the collection, so no request carries its own Authorization header.\n\n**On the scheme.** Basic is what the service enforces today, and it is provisional — see `platformAuth` in openapi.json and the note at `ApiSecurityConfiguration.httpBasic`. This collection previously sent a bearer token, which the service does not accept, so every request answered 401. When the platform gateway's token issuer is settled the credential becomes a bearer token; until then a bearer value authenticates nothing here.\n\nTwo conventions hold everywhere:\n\n- **Money is an integer count of paise.** `{\"paise\": 12345, \"currency\": \"INR\"}` is ₹123.45. A decimal or a quoted number is refused with 400, not truncated.\n- **Errors are branched on by `code`, never by `message`.** The message is a developer-facing explanation and is not stable.\n\nFull reference: docs/api/README.md",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "auth": {
+  "type": "basic",
+  "basic": [
+   {
+    "key": "username",
+    "value": "{{username}}",
+    "type": "string"
+   },
+   {
+    "key": "password",
+    "value": "{{password}}",
+    "type": "string"
+   }
+  ]
+ },
+ "variable": [
+  {
+   "key": "baseUrl",
+   "value": "http://localhost:8080",
+   "type": "string",
+   "description": "Host and port only, no context path. The service has none."
+  },
+  {
+   "key": "username",
+   "value": "",
+   "type": "string",
+   "description": "The account's UCC. It is the authenticated subject, and every endpoint resolves the account from it — no request body or path carries an account identifier."
+  },
+  {
+   "key": "password",
+   "value": "",
+   "type": "string",
+   "description": "The credential for that subject. Provisional scheme: see the collection description. A gateway ahead of the service may reject the request before it arrives, with the gateway's error shape rather than this service's."
+  },
+  {
+   "key": "requestId",
+   "value": "0",
+   "type": "string",
+   "description": "Captured automatically from the POST /payout response. The default is 0 so the path stays well-formed when there is no open request; a 64-bit id that cannot exist answers 409 with reason NOT_FOUND, which is the endpoint's own refusal rather than a routing miss."
+  },
+  {
+   "key": "reference",
+   "value": "FMS-NO-SUCH-ENTRY",
+   "type": "string",
+   "description": "Captured automatically from the first entry of GET /transactions. The default is deliberately a reference that cannot exist: with an empty period there is nothing to capture, and an EMPTY variable collapsed the URL to /transactions/ — an unmapped path whose 404 carries a body, so the request tested Spring's routing instead of this endpoint."
+  }
+ ],
+ "item": [
+  {
+   "name": "Withdrawals",
+   "description": "Requesting and cancelling withdrawals. A request reserves nothing: it settles at end of day against whatever is available then, which is why every response carries a shrink warning key.",
+   "item": [
+    {
+     "name": "Request a withdrawal",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "// Capture the id so the cancel request below works without editing a variable.",
+         "if (pm.response.code === 201) {",
+         "    const body = pm.response.json();",
+         "    pm.collectionVariables.set('requestId', String(body.requestId));",
+         "",
+         "    pm.test('paise is an integer', () =>",
+         "        pm.expect(Number.isInteger(body.withdrawableAtRequest.paise)).to.be.true);",
+         "    pm.test('the shrink warning is present', () =>",
+         "        pm.expect(body.shrinkWarningKey).to.eql('WITHDRAWAL_MAY_SHRINK_AT_SETTLEMENT'));",
+         "    pm.test('the destination is masked', () =>",
+         "        pm.expect(body.destinationMasked).to.not.match(/\\d{9,}/));",
+         "} else {",
+         "    // Every refusal on this path is branched on by code, so surface it.",
+         "    console.log('refused:', pm.response.json().code, pm.response.json().details);",
+         "}"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"amount\": {\n    \"paise\": 500000,\n    \"currency\": \"INR\"\n  },\n  \"destinationRef\": \"acc-4471\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/payout",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "payout"
+       ]
+      },
+      "description": "Creates the account's single open withdrawal request.\n\nNo account identifier anywhere in the body: the account comes from the token's subject claim.\n\nOne open request per account, enforced by a partial unique index rather than by a service check. A second request while one is open returns 409 `request_already_open`. Do not build a check-then-submit flow around this; handle the 409.\n\n**Failures**\n\n- 400 `invalid_request` — malformed body, missing field, decimal paise\n- 409 `request_already_open` / `withdrawable_unavailable` / `figures_stale`\n- 422 `amount_exceeds_withdrawable` (details carry `requested` and `withdrawable`) / `destination_not_verified`\n- 503 `upstream_unavailable` / `calendar_unavailable`"
+     },
+     "response": [
+      {
+       "name": "201 Created",
+       "originalRequest": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"amount\": { \"paise\": 5000000, \"currency\": \"INR\" },\n  \"destinationRef\": \"acc-4471\"\n}"
+        },
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout"
+         ]
+        }
+       },
+       "status": "Created",
+       "code": 201,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"requestId\": 4242,\n  \"fmsReference\": \"FMS-2026-0821-4242\",\n  \"arrivalDateQuoted\": \"2026-08-25\",\n  \"shrinkWarningKey\": \"WITHDRAWAL_MAY_SHRINK_AT_SETTLEMENT\",\n  \"state\": \"ACCEPTED\",\n  \"withdrawableAtRequest\": { \"paise\": 8000000, \"currency\": \"INR\" },\n  \"destinationMasked\": \"••••4471\"\n}"
+      },
+      {
+       "name": "422 amount_exceeds_withdrawable",
+       "originalRequest": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"amount\": { \"paise\": 50000000, \"currency\": \"INR\" },\n  \"destinationRef\": \"acc-4471\"\n}"
+        },
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout"
+         ]
+        }
+       },
+       "status": "Unprocessable Entity",
+       "code": 422,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"code\": \"amount_exceeds_withdrawable\",\n  \"message\": \"requested 50000000 against a withdrawable figure of 8000000\",\n  \"details\": {\n    \"requested\": { \"paise\": 50000000, \"currency\": \"INR\" },\n    \"withdrawable\": { \"paise\": 8000000, \"currency\": \"INR\" }\n  }\n}"
+      },
+      {
+       "name": "409 request_already_open",
+       "originalRequest": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"amount\": { \"paise\": 5000000, \"currency\": \"INR\" },\n  \"destinationRef\": \"acc-4471\"\n}"
+        },
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout"
+         ]
+        }
+       },
+       "status": "Conflict",
+       "code": 409,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"code\": \"request_already_open\",\n  \"message\": \"this account already has an open withdrawal request\"\n}"
+      },
+      {
+       "name": "400 invalid_request — a decimal where paise is declared",
+       "originalRequest": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"amount\": { \"paise\": 100.9, \"currency\": \"INR\" },\n  \"destinationRef\": \"acc-4471\"\n}"
+        },
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout"
+         ]
+        }
+       },
+       "status": "Bad Request",
+       "code": 400,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"code\": \"invalid_request\",\n  \"message\": \"the request body could not be read: check that it is valid JSON, that every required field is present, and that each value has the declared type\"\n}"
+      }
+     ]
+    },
+    {
+     "name": "The open request, if any",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "// 204 is an ordinary state, not an error. Parsing before checking the status",
+         "// throws on an empty body.",
+         "pm.test('204 carries no body', () => {",
+         "    if (pm.response.code === 204) {",
+         "        pm.expect(pm.response.text()).to.be.empty;",
+         "    }",
+         "});",
+         "if (pm.response.code === 200) {",
+         "    pm.collectionVariables.set('requestId', String(pm.response.json().requestId));",
+         "}"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/payout",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "payout"
+       ]
+      },
+      "description": "200 with the request, or 204 with an empty body when there is none.\n\nA request counts as open while its state is ACCEPTED, QUEUED_FOR_RUN or INSTRUCTED."
+     },
+     "response": [
+      {
+       "name": "204 No open request",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout"
+         ]
+        }
+       },
+       "status": "No Content",
+       "code": 204,
+       "_postman_previewlanguage": "text",
+       "header": [],
+       "body": ""
+      },
+      {
+       "name": "200 The open request",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout"
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"requestId\": 4242,\n  \"fmsReference\": \"FMS-2026-0821-4242\",\n  \"arrivalDateQuoted\": \"2026-08-25\",\n  \"shrinkWarningKey\": \"WITHDRAWAL_MAY_SHRINK_AT_SETTLEMENT\",\n  \"state\": \"QUEUED_FOR_RUN\",\n  \"withdrawableAtRequest\": { \"paise\": 8000000, \"currency\": \"INR\" },\n  \"destinationMasked\": \"••••4471\"\n}"
+      }
+     ]
+    },
+    {
+     "name": "Cancel a request",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "// The three reasons mean different things to a trader, so branch on them",
+         "// rather than showing one generic refusal.",
+         "if (pm.response.code === 409) {",
+         "    const reason = pm.response.json().details.reason;",
+         "    pm.test('the reason is one of the three', () =>",
+         "        pm.expect(['ALREADY_INSTRUCTED', 'ALREADY_TERMINAL', 'NOT_FOUND']).to.include(reason));",
+         "    console.log('not cancellable:', reason);",
+         "}"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "DELETE",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/payout/{{requestId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "payout",
+        "{{requestId}}"
+       ]
+      },
+      "description": "Permitted while ACCEPTED or QUEUED_FOR_RUN. It stays available after a rail outage has deferred the request, since a trader whose payout was deferred has more reason to want it stopped.\n\nA request belonging to another trader answers 409 with reason NOT_FOUND rather than 403 — confirming existence would itself leak."
+     },
+     "response": [
+      {
+       "name": "200 Cancelled",
+       "originalRequest": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout/4242",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout",
+          "4242"
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"requestId\": 4242,\n  \"fmsReference\": \"FMS-2026-0821-4242\",\n  \"arrivalDateQuoted\": \"2026-08-25\",\n  \"shrinkWarningKey\": \"WITHDRAWAL_MAY_SHRINK_AT_SETTLEMENT\",\n  \"state\": \"CANCELLED\",\n  \"withdrawableAtRequest\": { \"paise\": 8000000, \"currency\": \"INR\" },\n  \"destinationMasked\": \"••••4471\"\n}"
+      },
+      {
+       "name": "409 not_cancellable",
+       "originalRequest": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payout/4242",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payout",
+          "4242"
+         ]
+        }
+       },
+       "status": "Conflict",
+       "code": 409,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"code\": \"not_cancellable\",\n  \"message\": \"request 4242 has been instructed to the payout rail and can no longer be stopped\",\n  \"details\": { \"reason\": \"ALREADY_INSTRUCTED\" }\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Adding funds",
+   "description": "Route limits, measured against what has already gone out today.",
+   "item": [
+    {
+     "name": "Remaining headroom today",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "// A null cap means unbounded. Rendering it as zero tells a trader NEFT is",
+         "// exhausted when it has no limit at all.",
+         "const routes = pm.response.json().routes;",
+         "pm.test('an uncapped route sends null, not zero', () => {",
+         "    routes.filter(r => r.remainingToday === null)",
+         "          .forEach(r => pm.expect(r.remainingToday).to.be.null);",
+         "});",
+         "routes.forEach(r => console.log(r.route,",
+         "    r.remainingToday === null ? 'uncapped' : r.remainingToday.paise + ' paise'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/payin/limits",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "payin",
+        "limits"
+       ]
+      },
+      "description": "The cap is daily and is measured against everything already sent on that route today, not per transaction. Two transfers of the cap amount will not both pass.\n\nA route with no cap returns `remainingToday: null`. That means unbounded and must not be rendered as zero.\n\nRender limits from these figures rather than naming them in copy: a message naming ₹1,00,000 becomes wrong the day Payments changes the value."
+     },
+     "response": [
+      {
+       "name": "200 OK",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/payin/limits",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "payin",
+          "limits"
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"routes\": [\n    { \"route\": \"UPI\", \"remainingToday\": { \"paise\": 10000000, \"currency\": \"INR\" }, \"fee\": { \"paise\": 0, \"currency\": \"INR\" } },\n    { \"route\": \"NET_BANKING\", \"remainingToday\": { \"paise\": 100000000, \"currency\": \"INR\" }, \"fee\": { \"paise\": 0, \"currency\": \"INR\" } },\n    { \"route\": \"NEFT\", \"remainingToday\": null, \"fee\": { \"paise\": 0, \"currency\": \"INR\" } }\n  ]\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Transactions",
+   "description": "History in either of two views, and its CSV export.\n\nMOVEMENTS carries only money the trader moved in or out. ALL_ENTRIES carries every entry with its running balance. Sale proceeds and charges are not payins and never appear in MOVEMENTS.",
+   "item": [
+    {
+     "name": "History — MOVEMENTS (default 30 days)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const body = pm.response.json();",
+         "if (body.entries.length > 0) {",
+         "    pm.collectionVariables.set('reference', body.entries[0].reference);",
+         "}",
+         "// Rule L7: an empty period comes back with the period echoed and a wider one",
+         "// suggested, never a bare empty array.",
+         "pm.test('an empty period suggests a wider one', () => {",
+         "    if (body.entries.length === 0) {",
+         "        pm.expect(body.suggestedWiderPeriod).to.not.be.null;",
+         "    }",
+         "});",
+         "pm.test('the period is echoed back', () =>",
+         "    pm.expect(body.period).to.have.keys('from', 'to'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/transactions",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "transactions"
+       ],
+       "query": [
+        {
+         "key": "view",
+         "value": "MOVEMENTS",
+         "disabled": true,
+         "description": "MOVEMENTS or ALL_ENTRIES. Defaults to MOVEMENTS."
+        },
+        {
+         "key": "from",
+         "value": "2026-07-23",
+         "disabled": true,
+         "description": "Inclusive. Send both bounds or neither — one alone is treated as none."
+        },
+        {
+         "key": "to",
+         "value": "2026-08-21",
+         "disabled": true,
+         "description": "Inclusive. The window may not exceed 92 days."
+        }
+       ]
+      },
+      "description": "Omit both bounds for the 30-day default. The number is not a round-figure guess: the mandated return of unused funds runs monthly or quarterly and is among the most-queried entries, so a shorter default shows an empty table for a transaction the trader knows happened.\n\nNo pagination, here or upstream — the back office's ledger endpoint has no offset, no cursor and no row limit, so the 92-day window is the only bound on response size. A wider range is walked in windows by the caller.\n\nThe response echoes the period actually used. Render from that rather than from what you asked for."
+     },
+     "response": [
+      {
+       "name": "200 Entries",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/transactions",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "transactions"
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"view\": \"MOVEMENTS\",\n  \"period\": { \"from\": \"2026-07-23\", \"to\": \"2026-08-21\" },\n  \"entries\": [\n    {\n      \"reference\": \"VCH-4471\",\n      \"date\": \"2026-08-19\",\n      \"kind\": \"PAYIN\",\n      \"descriptionKey\": \"ENTRY_PAYIN\",\n      \"descriptionParameters\": { \"amountPaise\": \"5000000\", \"direction\": \"IN\", \"segment\": \"NSE_CASH\" },\n      \"secondaryDetail\": \"SETT-2026-0819-11\",\n      \"amount\": { \"paise\": 5000000, \"currency\": \"INR\" },\n      \"direction\": \"IN\",\n      \"runningBalance\": { \"paise\": 13200000, \"currency\": \"INR\" },\n      \"segment\": \"NSE_CASH\",\n      \"userCaused\": true,\n      \"reversedBy\": null,\n      \"reverses\": null\n    }\n  ],\n  \"suggestedWiderPeriod\": null\n}"
+      },
+      {
+       "name": "200 Empty, with a wider period suggested",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/transactions?from=2026-08-20&to=2026-08-21",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "transactions"
+         ],
+         "query": [
+          {
+           "key": "from",
+           "value": "2026-08-20"
+          },
+          {
+           "key": "to",
+           "value": "2026-08-21"
+          }
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"view\": \"MOVEMENTS\",\n  \"period\": { \"from\": \"2026-08-20\", \"to\": \"2026-08-21\" },\n  \"entries\": [],\n  \"suggestedWiderPeriod\": { \"from\": \"2026-08-16\", \"to\": \"2026-08-21\" }\n}"
+      },
+      {
+       "name": "400 invalid_request — window wider than 92 days",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/transactions?from=2020-01-01&to=2026-08-21",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "transactions"
+         ],
+         "query": [
+          {
+           "key": "from",
+           "value": "2020-01-01"
+          },
+          {
+           "key": "to",
+           "value": "2026-08-21"
+          }
+         ]
+        }
+       },
+       "status": "Bad Request",
+       "code": 400,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"code\": \"invalid_request\",\n  \"message\": \"a period of 2424 days exceeds the 92-day maximum; the back office's ledger has no pagination, so a wider range is walked in windows rather than requested in one call\"\n}"
+      }
+     ]
+    },
+    {
+     "name": "History — ALL_ENTRIES with a period",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/transactions?view=ALL_ENTRIES&from=2026-07-23&to=2026-08-21",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "transactions"
+       ],
+       "query": [
+        {
+         "key": "view",
+         "value": "ALL_ENTRIES"
+        },
+        {
+         "key": "from",
+         "value": "2026-07-23"
+        },
+        {
+         "key": "to",
+         "value": "2026-08-21"
+        }
+       ]
+      },
+      "description": "Every entry with its running balance — the full account explanation.\n\nThe running balance is the back office's own. Never accumulate your own from the amounts; the two will diverge.\n\nBoth views are one parameter on one endpoint so that toggling views keeps the selected period. Carry `from` and `to` across the toggle."
+     },
+     "response": []
+    },
+    {
+     "name": "One entry in full",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "// This 404 carries an EMPTY body, unlike every other error on this API.",
+         "// Check the status before parsing.",
+         "pm.test('404 carries no body', () => {",
+         "    if (pm.response.code === 404) {",
+         "        pm.expect(pm.response.text()).to.be.empty;",
+         "    }",
+         "});"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/transactions/{{reference}}?from=2026-07-23&to=2026-08-21",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "transactions",
+        "{{reference}}"
+       ],
+       "query": [
+        {
+         "key": "from",
+         "value": "2026-07-23",
+         "disabled": true
+        },
+        {
+         "key": "to",
+         "value": "2026-08-21",
+         "disabled": true
+        }
+       ]
+      },
+      "description": "Looked up across ALL_ENTRIES regardless of view, so an entry the movements view filters out is still reachable by reference.\n\nPass the same period the list used. A real entry outside the period you send answers 404 exactly as an unknown reference does.\n\nAn entry belonging to another trader also answers 404 rather than 403 — confirming existence would itself leak."
+     },
+     "response": [
+      {
+       "name": "200 The entry",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/transactions/VCH-4471",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "transactions",
+          "VCH-4471"
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "json",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "application/json"
+        }
+       ],
+       "body": "{\n  \"reference\": \"VCH-4471\",\n  \"date\": \"2026-08-19\",\n  \"kind\": \"PAYIN\",\n  \"descriptionKey\": \"ENTRY_PAYIN\",\n  \"descriptionParameters\": { \"amountPaise\": \"5000000\", \"direction\": \"IN\", \"segment\": \"NSE_CASH\" },\n  \"secondaryDetail\": \"SETT-2026-0819-11\",\n  \"amount\": { \"paise\": 5000000, \"currency\": \"INR\" },\n  \"direction\": \"IN\",\n  \"runningBalance\": { \"paise\": 13200000, \"currency\": \"INR\" },\n  \"segment\": \"NSE_CASH\",\n  \"userCaused\": true,\n  \"reversedBy\": null,\n  \"reverses\": null\n}"
+      },
+      {
+       "name": "404 No such entry (empty body)",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/transactions/NOPE",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "transactions",
+          "NOPE"
+         ]
+        }
+       },
+       "status": "Not Found",
+       "code": 404,
+       "_postman_previewlanguage": "text",
+       "header": [],
+       "body": ""
+      }
+     ]
+    },
+    {
+     "name": "Statement CSV",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('the header row is the agreed six columns', () =>",
+         "    pm.expect(pm.response.text().split('\\r\\n')[0])",
+         "      .to.eql('Date,Description,Type,Reference,Amount,Balance'));",
+         "// The filename comes from the server. Read it rather than composing one.",
+         "console.log(pm.response.headers.get('Content-Disposition'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "text/csv"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/api/v1/funds/statement.csv?view=ALL_ENTRIES&from=2026-07-23&to=2026-08-21",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "funds",
+        "statement.csv"
+       ],
+       "query": [
+        {
+         "key": "view",
+         "value": "ALL_ENTRIES",
+         "description": "Defaults to ALL_ENTRIES here, not MOVEMENTS. Pass it explicitly from whatever is on screen."
+        },
+        {
+         "key": "from",
+         "value": "2026-07-23"
+        },
+        {
+         "key": "to",
+         "value": "2026-08-21"
+        }
+       ]
+      },
+      "description": "An export returns precisely what is on screen — the same view, the same period, the same running balance. Note the view default differs from the JSON endpoint, so send it explicitly.\n\nAmounts are plain decimals with no currency symbol and no thousands separator, so the file is summable in a spreadsheet without cleaning. Line endings are CRLF per RFC 4180. Fields starting `=`, `+`, `-` or `@` are prefixed with an apostrophe so a spreadsheet does not execute them as formulas.\n\nIn a browser, fetch this with the Authorization header and save the blob. A plain `window.location` navigation carries no credential the collection sends, which a browser navigation would not carry.\n\nA 400 here can also mean the export was refused because a field looked like an unmasked account number. That check runs before any bytes are written, so you get a clean status rather than a truncated file."
+     },
+     "response": [
+      {
+       "name": "200 The statement",
+       "originalRequest": {
+        "method": "GET",
+        "header": [],
+        "url": {
+         "raw": "{{baseUrl}}/api/v1/funds/statement.csv?view=ALL_ENTRIES&from=2026-07-23&to=2026-08-21",
+         "host": [
+          "{{baseUrl}}"
+         ],
+         "path": [
+          "api",
+          "v1",
+          "funds",
+          "statement.csv"
+         ],
+         "query": [
+          {
+           "key": "view",
+           "value": "ALL_ENTRIES"
+          },
+          {
+           "key": "from",
+           "value": "2026-07-23"
+          },
+          {
+           "key": "to",
+           "value": "2026-08-21"
+          }
+         ]
+        }
+       },
+       "status": "OK",
+       "code": 200,
+       "_postman_previewlanguage": "text",
+       "header": [
+        {
+         "key": "Content-Type",
+         "value": "text/csv; charset=UTF-8"
+        },
+        {
+         "key": "Content-Disposition",
+         "value": "attachment; filename=\"statement-2026-07-23-to-2026-08-21.csv\""
+        }
+       ],
+       "body": "Date,Description,Type,Reference,Amount,Balance\r\n2026-08-19,Funds added,Credit,SETT-2026-0819-11,50000.00,132000.00\r\n2026-08-20,Charges,Debit,VCH-4480,120.50,131879.50\r\n"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

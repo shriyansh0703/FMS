@@ -1,0 +1,27 @@
+# Local defaults. Every value here is overridden by the deployment.
+spring:
+  application:
+    name: fund-management-service
+
+  # Flyway runs against the estate's existing schema, already at V20. FMS continues the sequence
+  # from V21 and never rewrites an existing table.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 20
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  # The spec is generated for tooling and for the Stage 8 gate. The interactive UI is not shipped:
+  # it is a second surface to secure on a service that moves money, for no operational benefit.
+  swagger-ui:
+    enabled: false
+
+fms:
+  payout:
+    # Deliberately unset. Scheduling is the deployment's to enable, so an unconfigured environment
+    # cannot start instructing payouts.
+    run-cron: "-"
+  vendor:
+    call-timeout: 8s

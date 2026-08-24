@@ -78,7 +78,24 @@ const STAGES_DIR = path.join(WORKSPACE_ROOT, '.ai', 'stages');
  * writing to `.ai/stages/architecture/hld-backend.md` is still tracked,
  * checksummed and validated instead of silently bypassing every guard.
  */
-const ARTIFACT_SEARCH_DIRS = [ARTIFACT_DIR, STAGES_DIR, SPECS_DIR];
+/**
+ * This repository keeps its PRD source in the numbered handover layout and
+ * symlinks `docs/specs/<slug>/` onto it, so the canonical path and the editable
+ * path are different files on disk.
+ *
+ * That split cannot be papered over by the symlinks alone. Editing tools refuse
+ * to write through a symlink and demand the resolved target, so every real PRD
+ * edit lands on `02-requirements/...` — a path outside every artifact root, which
+ * `getArtifactName()` returns null for. The depth floor, the ownership check and
+ * the placeholder scan would all silently skip the one document Stage 1 exists to
+ * produce, and nothing would report that they had.
+ *
+ * Naming the source directory here is what keeps the guards attached to the file
+ * that actually changes.
+ */
+const PRD_SOURCE_DIR = path.join(WORKSPACE_ROOT, '02-requirements');
+
+const ARTIFACT_SEARCH_DIRS = [ARTIFACT_DIR, STAGES_DIR, SPECS_DIR, PRD_SOURCE_DIR];
 
 const STAGE_ARTIFACTS = {
   requirement:     ['requirements.md'],

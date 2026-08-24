@@ -129,6 +129,25 @@ const SCHEMAS = {
     requireScopeField: true,
   },
 
+  // A split-PRD feature file (`product-requirements-[feature].md`), per split.md.
+  //
+  // These map onto `requirements.md` for ownership and staleness (config.js), but
+  // they must NOT be validated against it. The whole-PRD schema demands personas,
+  // NFRs, a Scope section and a `scope:` frontmatter field — all of which live in
+  // the index by design, exactly once, because split.md forbids restating a fact
+  // in two files. Validating a part against the index schema fails all seven files
+  // of a correctly-split PRD and makes the mandated layout unwritable.
+  //
+  // The floor here is depth and honesty. Structural completeness ACROSS the file
+  // set is Stage 2's job: `validation.md → Split-File Consistency` checks the
+  // breadcrumbs, the `parts:` list and non-duplication with the whole set in hand,
+  // which is the only place that check can be made correctly.
+  'product-requirements-part.md': {
+    minLines: 60,
+    enforceNoPlaceholders: true,
+    requiredSections: [],
+  },
+
   'prd-review.md': {
     minLines: 40,
     enforceNoPlaceholders: false,

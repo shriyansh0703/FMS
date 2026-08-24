@@ -415,6 +415,69 @@ function testDepthAndPlaceholders() {
     `got ${decisionOf(noDiagram)}`);
 }
 
+function testSplitPrdPartSchema() {
+  console.log('\n\x1b[1mSplit-PRD part files are validated as parts, not as the index\x1b[0m');
+
+  setState({ currentStage: 'requirement', scope: 'fullstack', workflowStatus: 'in_progress' });
+
+  const specDir = path.join(ROOT, 'docs', 'specs', '001-demo');
+  fs.mkdirSync(specDir, { recursive: true });
+
+  // A real part file: requirements, rules, flows and edge cases for ONE feature.
+  // It has no personas, no NFRs, no Scope section and no `scope:` field, because
+  // split.md puts each of those in the index exactly once.
+  const partBody =
+    '---\ntitle: "Demo — Payouts"\npart_of: product-requirements.md\n---\n\n' +
+    '# Payouts\n\n> Part 2 of the [Demo PRD](product-requirements.md).\n\n' +
+    '## Functional Requirements\n\n' +
+    '### REQ-301 — Let the user withdraw (Must Have)\n\n' +
+    '- **User Story:** As a user, I want to withdraw, so that I can reach my money.\n' +
+    '- **Acceptance Criteria:**\n' +
+    '  - [ ] THE SYSTEM SHALL present a withdraw entry point whenever the account exists.\n' +
+    '  - [ ] WHILE nothing can be withdrawn, THE SYSTEM SHALL name the deduction responsible.\n\n' +
+    '## Business Rules\n\n**Rule W1 — The way out is always visible.** Detail here.\n\n' +
+    '## User Flows\n\n### Flow 1: Withdraw\n\nSteps here.\n\n' +
+    '## Feature-Specific Edge Cases\n\n- A case, and its expected behaviour.\n' +
+    'filler\n'.repeat(60);
+
+  const part = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(specDir, 'product-requirements-payouts.md'),
+    content: partBody,
+  }));
+  check('A valid split-PRD part file is ALLOWED',
+    decisionOf(part) !== 'deny',
+    `got ${decisionOf(part)}: ${reasonOf(part).slice(0, 300)}`);
+  check('Part file is NOT asked for personas / NFRs / a scope: field',
+    !/persona|non-functional|scope:/i.test(reasonOf(part)),
+    `reason: ${reasonOf(part).slice(0, 300)}`);
+
+  // The part schema still enforces the honesty floors.
+  const thin = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(specDir, 'product-requirements-payouts.md'),
+    content: '# Payouts\n\nWe will do payouts.\n',
+  }));
+  check('A stub part file is still DENIED on the depth floor',
+    decisionOf(thin) === 'deny' && /floor|lines/i.test(reasonOf(thin)),
+    `got ${decisionOf(thin)}: ${reasonOf(thin).slice(0, 200)}`);
+
+  const withTbd = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(specDir, 'product-requirements-payouts.md'),
+    content: partBody.replace('Detail here.', 'TBD'),
+  }));
+  check('A part file containing "TBD" is still DENIED',
+    decisionOf(withTbd) === 'deny' && /TBD/.test(reasonOf(withTbd)),
+    `got ${decisionOf(withTbd)}: ${reasonOf(withTbd).slice(0, 200)}`);
+
+  // The index keeps the full whole-PRD schema — the part schema must not leak onto it.
+  const thinIndex = runHook('pre-tool.js', preToolPayload('Write', {
+    file_path: path.join(specDir, 'product-requirements.md'),
+    content: partBody,
+  }));
+  check('The PRD index is still held to the full schema',
+    decisionOf(thinIndex) === 'deny' && /persona|non-functional|scope:/i.test(reasonOf(thinIndex)),
+    `got ${decisionOf(thinIndex)}: ${reasonOf(thinIndex).slice(0, 300)}`);
+}
+
 function testVerdictFormatEnforcement() {
   console.log('\n\x1b[1mReview artifacts must carry a canonical verdict\x1b[0m');
 
@@ -808,6 +871,7 @@ function main() {
     testOwnershipGate();
     testVerdictGate();
     testDepthAndPlaceholders();
+    testSplitPrdPartSchema();
     testVerdictFormatEnforcement();
     testEditFragmentHandling();
     testPlanningContract();

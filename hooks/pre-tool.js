@@ -176,8 +176,16 @@ async function main() {
     }
 
     // --- Check 6: Structural depth (ZERO SHORTCUTS policy) ---
+    //
+    // Split-PRD feature files collapse to `requirements.md` for ownership, but they
+    // carry a part's structure, not the index's — so they get their own schema.
+    // See the note on 'product-requirements-part.md' in utils/artifact-schema.js.
+    const schemaName = /^product-requirements-.+\.md$/.test(path.basename(absolutePath))
+      ? 'product-requirements-part.md'
+      : artifactName;
+
     if (resolved.complete && typeof resolved.content === 'string') {
-      const structResult = validateArtifact(artifactName, resolved.content);
+      const structResult = validateArtifact(schemaName, resolved.content);
       if (!structResult.valid) {
         errors.push(...structResult.errors.map((e) => `Depth/structure: ${e}`));
       }

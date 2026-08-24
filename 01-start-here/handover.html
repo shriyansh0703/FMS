@@ -1,0 +1,243 @@
+<title>FMS Handover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#F4F5F3; --surface:#FFFFFF; --raise:#EAEDE9;
+  --ink:#14171A; --ink2:#4E555C; --ink3:#838C90;
+  --rule:#DFE3DE; --rule2:#CBD1CB;
+  --accent:#0B5D51; --accent-bg:#E3EFEC;
+  --gate:#8F5400; --gate-bg:#F7EEE0;
+  --stop:#A33323; --stop-bg:#F8E8E4;
+  --shadow:0 1px 2px rgba(20,23,26,.05),0 10px 26px -14px rgba(20,23,26,.14);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#101315; --surface:#191D20; --raise:#212629;
+  --ink:#E9ECEA; --ink2:#9AA4A6; --ink3:#6E787B;
+  --rule:#2A3033; --rule2:#39413F;
+  --accent:#54CFB5; --accent-bg:#0E2B27;
+  --gate:#E2A445; --gate-bg:#2E2312;
+  --stop:#EA8067; --stop-bg:#331914;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 26px -14px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#101315; --surface:#191D20; --raise:#212629;
+  --ink:#E9ECEA; --ink2:#9AA4A6; --ink3:#6E787B;
+  --rule:#2A3033; --rule2:#39413F;
+  --accent:#54CFB5; --accent-bg:#0E2B27;
+  --gate:#E2A445; --gate-bg:#2E2312;
+  --stop:#EA8067; --stop-bg:#331914;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 26px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font:400 16px/1.6 "Source Sans 3",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1440px;margin:0 auto;padding:0 clamp(16px,3vw,44px)}
+
+.mast{padding:clamp(38px,5.5vw,72px) 0 30px}
+.eyebrow{font:500 11px/1 "JetBrains Mono",monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink3);display:block;margin-bottom:20px}
+h1.page{font:700 clamp(36px,5.6vw,68px)/1.03 "Archivo",system-ui,sans-serif;letter-spacing:-.028em;
+  margin:0 0 18px;text-wrap:balance;max-width:15ch}
+.stand{font-size:clamp(16px,1.45vw,18.5px);line-height:1.55;color:var(--ink2);max-width:64ch;margin:0 0 30px}
+.stand b{color:var(--ink);font-weight:600}
+
+/* the phase spine — the page's thesis */
+.spine{list-style:none;margin:0 0 26px;padding:0;border:1px solid var(--rule);border-radius:4px;
+  overflow:hidden;background:var(--surface);box-shadow:var(--shadow)}
+.ph{display:grid;grid-template-columns:52px 1fr auto;gap:14px;align-items:center;
+  padding:13px 16px;border-bottom:1px solid var(--rule);border-left:3px solid var(--rule2)}
+.ph:last-child{border-bottom:0}
+.ph.clear{border-left-color:var(--accent)}
+.ph.gate{border-left-color:var(--gate)}
+.ph.stop{border-left-color:var(--stop)}
+.ph-n{font:600 22px/1 "Archivo",sans-serif;color:var(--ink3);font-variant-numeric:tabular-nums;
+  text-align:center}
+.ph.clear .ph-n{color:var(--accent)}
+.ph.gate .ph-n{color:var(--gate)}
+.ph.stop .ph-n{color:var(--stop)}
+.ph-b{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ph-t{font:600 16px/1.3 "Archivo",sans-serif;letter-spacing:-.01em}
+.ph-d{font-size:13.5px;color:var(--ink3);line-height:1.4}
+.ph-s{font:500 10.5px/1.7 "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 9px;border-radius:2px;white-space:nowrap;border:1px solid transparent}
+.ph.clear .ph-s{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+.ph.gate .ph-s{background:var(--gate-bg);color:var(--gate);border-color:var(--gate)}
+.ph.stop .ph-s{background:var(--stop-bg);color:var(--stop);border-color:var(--stop)}
+@media(max-width:620px){.ph{grid-template-columns:40px 1fr;row-gap:8px}.ph-s{grid-column:2}}
+
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;font:400 12.5px/1.5 "JetBrains Mono",monospace;color:var(--ink3)}
+.meta b{color:var(--ink2);font-weight:500}
+
+.cols{display:grid;grid-template-columns:214px minmax(0,1fr);gap:clamp(26px,3.6vw,56px);
+  align-items:start;padding:34px 0 88px;border-top:1px solid var(--rule);margin-top:30px}
+@media(max-width:1000px){.cols{grid-template-columns:1fr;gap:10px}}
+nav.rail{position:sticky;top:20px}
+@media(max-width:1000px){nav.rail{position:static;border:1px solid var(--rule);border-radius:4px;
+  padding:12px 14px;background:var(--surface)}}
+.rail h2{font:500 10.5px/1 "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink3);margin:0 0 12px}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.rail a{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:baseline;text-decoration:none;
+  color:var(--ink2);padding:5px 8px;border-radius:3px;font-size:13.5px;line-height:1.35;
+  border-left:2px solid transparent}
+.rail a:hover{background:var(--raise);color:var(--ink)}
+.rail a.on{border-left-color:var(--accent);color:var(--ink);background:var(--raise)}
+.rn{font:500 11px/1.4 "JetBrains Mono",monospace;color:var(--ink3);font-variant-numeric:tabular-nums}
+.rail a.on .rn{color:var(--accent)}
+
+main{min-width:0}
+section{scroll-margin-top:18px}
+section+section{margin-top:52px;padding-top:38px;border-top:1px solid var(--rule)}
+h2{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:baseline;
+  font:600 clamp(24px,2.7vw,33px)/1.15 "Archivo",sans-serif;letter-spacing:-.02em;margin:0 0 22px;
+  text-wrap:balance}
+.secnum{font:500 12.5px/1 "JetBrains Mono",monospace;color:var(--accent);padding-top:.4em;
+  font-variant-numeric:tabular-nums}
+h3{font:600 clamp(17px,1.75vw,20px)/1.3 "Archivo",sans-serif;margin:32px 0 12px;text-wrap:balance}
+h4{font:600 15px/1.4 "Archivo",sans-serif;margin:22px 0 9px}
+h1.doc-h1{font:700 clamp(26px,3.2vw,38px)/1.1 "Archivo",sans-serif;letter-spacing:-.022em;margin:0 0 24px}
+p{margin:0 0 15px;max-width:76ch}
+ul,ol{margin:0 0 17px;padding-left:1.3em;max-width:76ch}
+li{margin-bottom:7px}li::marker{color:var(--ink3)}
+strong{font-weight:600}
+em{font-style:italic;color:var(--ink2)}
+a{color:var(--accent);text-underline-offset:2px}
+hr{border:0;border-top:1px solid var(--rule);margin:34px 0}
+code{font:500 .87em/1.5 "JetBrains Mono",ui-monospace,monospace;background:var(--raise);
+  border:1px solid var(--rule);border-radius:3px;padding:.1em .34em;word-break:break-word}
+blockquote{margin:0 0 18px;padding:13px 18px;background:var(--surface);border:1px solid var(--rule);
+  border-left:2px solid var(--accent);border-radius:4px;color:var(--ink2);max-width:76ch}
+blockquote p:last-child{margin-bottom:0}
+
+.tw{overflow-x:auto;margin:0 0 22px;border:1px solid var(--rule);border-radius:4px;
+  background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:14px;line-height:1.5}
+th{text-align:left;padding:10px 14px;background:var(--raise);
+  font:500 10.5px/1.3 "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);border-bottom:1px solid var(--rule2);vertical-align:bottom;white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink2)}
+tr:last-child td{border-bottom:0}
+td:first-child{color:var(--ink)}
+td code{font-size:.86em}
+td strong{color:var(--ink)}
+/* the accent's one job in tables: the owner of a gate */
+td:last-child strong{color:var(--accent)}
+
+.foot{border-top:1px solid var(--rule);padding:24px 0 56px;
+  font:400 12.5px/1.6 "JetBrains Mono",monospace;color:var(--ink3);display:flex;flex-wrap:wrap;gap:6px 26px}
+a:focus-visible,.rail a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+<div class="wrap">
+<header class="mast">
+  <span class="eyebrow">FMS-HANDOVER-001 &middot; 20 Aug 2026 &middot; the PRDs govern; this routes what is unanswered</span>
+  <h1 class="page">FMS Handover</h1>
+  <p class="stand">Eight requirement files, 72 active requirements, a working prototype and a complete instrumentation spec. <b>Phase 1 has no open blocker &mdash; start there.</b> Everything below is what is not ready, who owns it, and which phase it gates, so that nothing falls between two teams.</p>
+  <ul class="spine">
+      <li class="ph clear">
+        <span class="ph-n">1</span>
+        <span class="ph-b"><span class="ph-t">The account is legible</span><span class="ph-d">Three balances · the derivation · the ledger · CSV export</span></span>
+        <span class="ph-s">No open blocker</span>
+      </li>
+      <li class="ph gate">
+        <span class="ph-n">2</span>
+        <span class="ph-b"><span class="ph-t">Money can come in</span><span class="ph-d">Comms orchestration &middot; Bank module interface</span></span>
+        <span class="ph-s">2 gates</span>
+      </li>
+      <li class="ph stop">
+        <span class="ph-n">3</span>
+        <span class="ph-b"><span class="ph-t">Money can go out</span><span class="ph-d">Withdrawal authentication &middot; Trading calendar</span></span>
+        <span class="ph-s">2 gates &middot; 1 security</span>
+      </li>
+      <li class="ph gate">
+        <span class="ph-n">4</span>
+        <span class="ph-b"><span class="ph-t">The account looks after itself</span><span class="ph-d">Debit interest rate &middot; Regulatory bypass</span></span>
+        <span class="ph-s">2 gates</span>
+      </li>
+      <li class="ph gate">
+        <span class="ph-n">5</span>
+        <span class="ph-b"><span class="ph-t">Refinements</span><span class="ph-d">Forward charge visibility</span></span>
+        <span class="ph-s">1 gate</span>
+      </li>
+  </ul>
+  <div class="meta">
+    <span><b>72</b> requirements</span>
+    <span><b>8</b> of 10 blockers closed</span>
+    <span><b>0</b> new event names</span>
+    <span><b>7</b> gates open</span>
+    <span><b>4</b> owners</span>
+  </div>
+</header>
+<div class="cols">
+<nav class="rail" aria-label="Contents"><h2>Contents</h2><ol>
+    <li><a href="#s1"><span class="rn">1</span><span>Read in this order</span></a></li>
+    <li><a href="#s2"><span class="rn">2</span><span>Blockers, by the phase they gate</span></a></li>
+    <li><a href="#s3"><span class="rn">3</span><span>What the dev team owes that is in no PRD</span></a></li>
+    <li><a href="#s4"><span class="rn">4</span><span>Decisions already taken</span></a></li>
+    <li><a href="#s5"><span class="rn">5</span><span>The invariants</span></a></li>
+    <li><a href="#s6"><span class="rn">6</span><span>Instrumentation, in one paragraph</span></a></li>
+    <li><a href="#s7"><span class="rn">7</span><span>Open, non-blocking</span></a></li>
+</ol></nav>
+<main>
+<h1 class="doc-h1">Fund Management System — Development Handover</h1>
+<p>Eight requirement files, 72 active requirements, a working prototype, and a complete instrumentation spec. <strong>Phase 1 has no open blocker.</strong> What follows is everything that is not ready, who owns it, and which phase it gates — so nothing falls between two teams.</p>
+<hr>
+<section id="s1"><h2><span class="secnum">1</span><span>Read in this order</span></h2>
+<div class="tw"><table><thead><tr><th>#</th><th>File</th><th>Why</th></tr></thead><tbody><tr><td>1</td><td><a href="../02-requirements/product-requirements.md">product-requirements.md</a></td><td>The spine. Engineering Digest lists all 72 requirements and the file that owns each. Start at the end-to-end flow</td></tr><tr><td>2</td><td>The six feature files</td><td><a href="../02-requirements/product-requirements-balances-and-margin.md">Balances &amp; Margin</a> · <a href="../02-requirements/product-requirements-add-funds.md">Add Funds</a> · <a href="../02-requirements/product-requirements-withdraw-funds.md">Withdraw Funds</a> · <a href="../02-requirements/product-requirements-transactions-and-statements.md">Transactions &amp; Statements</a> · <a href="../02-requirements/product-requirements-account-health.md">Account Health</a> · <a href="../02-requirements/product-requirements-configuration.md">Configuration</a></td></tr><tr><td>3</td><td><a href="../02-requirements/product-requirements-communications.md">Communications</a></td><td>27 requirements, 17 rules, the message catalogue. <strong>Read §11 before building withdrawal</strong></td></tr><tr><td>4</td><td><a href="../03-instrumentation/product-requirements-events-and-funnels.md">Events &amp; Funnels</a></td><td>The instrumentation spec. <strong>Not</strong> the tracking table in the spine — that section is superseded and says so</td></tr><tr><td>5</td><td><a href="../04-prototype/"><code>04-prototype/</code></a></td><td>Working prototype. <code>derive()</code> in <code>app.js</code> is the single definition of every balance; <code>metrics()</code> in <code>dashboard.js</code> the single definition of every figure</td></tr></tbody></table></div>
+<p><strong>The one trap.</strong> <code>product-requirements.md</code> §Tracking Requirements was replaced on 19 Aug with a pointer. If you are reading a copy that still lists twenty-one event names, it is stale — eight of those rows sent balances as event properties, which the same document's own privacy NFR forbids.</p>
+<hr>
+</section>
+<section id="s2"><h2><span class="secnum">2</span><span>Blockers, by the phase they gate</span></h2>
+<h3>Phase 1 — the account is legible · <strong>NOTHING BLOCKS THIS</strong></h3>
+<p>Three balances, the withdrawable derivation, the ledger, CSV export, the blocked and empty states. Ships without any answer below. Start here.</p>
+<p>One dependency to confirm, not resolve: <strong>EB-2</strong> is settled in principle — front office supplies margin in market hours, TechExcel outside — but the interface contract itself needs writing. REQ-107's staleness stamp depends on knowing which source answered and when.</p>
+<h3>Phase 2 — money can come in</h3>
+<div class="tw"><table><thead><tr><th>Gate</th><th>Owner</th><th>Detail</th></tr></thead><tbody><tr><td><strong>Comms orchestration</strong></td><td>Product owner with engineering</td><td>CleverTap Journeys triggered by FMS events, or an FMS scheduler with CleverTap as delivery only. Blocks all 27 communications requirements. <strong>It sits in front of SMS template registration, which the annex flags as the slowest item in the release</strong> — a DLT queue, not a build task. Start it before development. Recommendation on record: <strong>FMS renders, CleverTap delivers</strong></td></tr><tr><td>Bank module interface</td><td>Product owner</td><td>EB-5 is closed in principle — Profile owns add, delete and set-primary, FMS reads the list and never mutates it. The interface and its readiness date still need to exist</td></tr></tbody></table></div>
+<h3>Phase 3 — money can go out</h3>
+<div class="tw"><table><thead><tr><th>Gate</th><th>Owner</th><th>Detail</th></tr></thead><tbody><tr><td><strong>Withdrawal authentication (C-Q8)</strong></td><td><strong>Product owner with authentication</strong></td><td><strong>Ruled a blocker 20 Aug 2026.</strong> Today no point in the flow requires the genuine account holder to act. Someone with account access can withdraw to a bank account already on file; the only notification is an email, probably to an inbox the same person controls, arriving after the instruction. <strong>Belongs to authentication, not FMS</strong> — which is exactly why it can be lost at a handover. Costs <strong>zero</strong> instrumentation change: <code>otp_purpose: withdrawal_confirm</code> is registered and unemitted. See <a href="../02-requirements/product-requirements-communications.md">Communications §11</a></td></tr><tr><td><strong>Trading &amp; settlement calendar (EB-9)</strong></td><td>Product owner with compliance</td><td>The last fully-open estimation blocker. TechExcel or a direct download, under what licence and cadence. <strong>Which days are working days is not derivable from the day of the week</strong>, and the arrival date is wrong without it. Three requirements depend on it</td></tr></tbody></table></div>
+<h3>Phase 4 — the account looks after itself</h3>
+<div class="tw"><table><thead><tr><th>Gate</th><th>Owner</th><th>Detail</th></tr></thead><tbody><tr><td><strong>Debit interest rate (EB-8)</strong></td><td>Finance with TechExcel</td><td>The 18% p.a. in configuration is a stand-in. <strong>No production message may quote a rate until the real one exists.</strong> The obligation to disclose stands regardless</td></tr><tr><td><strong>Regulatory bypass configuration</strong></td><td>Product owner with compliance</td><td>How margin-shortfall intimation ignores preference, quiet hours and frequency capping <em>without every other message inheriting the exemption</em>. Wrong in one direction is a compliance failure, wrong in the other is a spam complaint</td></tr></tbody></table></div>
+<h3>Phase 5 — refinements</h3>
+<p><strong>EB-6</strong> — does TechExcel expose a <em>scheduled, not-yet-posted</em> charge, or only posted ones? Determines whether REQ-503 is buildable at all. Finance with TechExcel.</p>
+<hr>
+</section>
+<section id="s3"><h2><span class="secnum">3</span><span>What the dev team owes that is in no PRD</span></h2>
+<div class="tw"><table><thead><tr><th>#</th><th>Item</th><th>Why it lands on you</th></tr></thead><tbody><tr><td>1</td><td><strong>The wrapper validation table and the §5-diff CI job</strong></td><td>THINQ-EVENTS-001 §8 requires both to ship <strong>with</strong> the instrumentation: per-module validation for the six module-scoped enums, and CI diffing it against §5. Every <em>"the wrapper will catch it"</em> argument in the corpus is currently a promise. Nobody has scheduled this</td></tr><tr><td>2</td><td><strong>EB-10 — volumes and behavioural assumptions</strong></td><td>Explicitly deferred to technical design: funding volume, concurrent peaks at market open and settlement dates, history depth per account, dormant and debit proportions. Technical design is your first task, so this is yours on day one</td></tr><tr><td>3</td><td><strong>State-transition persistence</strong></td><td>REQ-405 requires every state a movement passed through, with times and the reason at any refusal, <strong>written as it happens</strong> rather than reconstructed from current status. A movement whose intermediate states were never written cannot have its timeline shown afterwards. This is a write-path decision, not a display one</td></tr><tr><td>4</td><td><strong>A registrar to route value registrations to</strong></td><td>THINQ-EVENTS-001 OD-1, still <span class="sev s0">P0</span> and unfilled. You will need to register values as you build, and there is nobody to approve them</td></tr></tbody></table></div>
+<hr>
+</section>
+<section id="s4"><h2><span class="secnum">4</span><span>Decisions already taken — do not reopen</span></h2>
+<div class="tw"><table><thead><tr><th>Decision</th><th>Ruling</th></tr></thead><tbody><tr><td><strong>The 95% deposit target (FMS-OD-2)</strong></td><td><strong>Closed 20 Aug.</strong> Counts <strong>first</strong> payment instructions FMS issued; succeeded = reached <code>fund_credited</code>; <strong><code>FUNDS_USER_CANCELLED</code> excluded from the denominator</strong>. Retries are measured separately by funnel F4</td></tr><tr><td><strong>The derivation affordance (FMS-OD-3)</strong></td><td><strong>Closed 20 Aug — render-conditional.</strong> Shown only where a gap exists. <code>funds_home_funded</code> is therefore a clean denominator and the <code>_gap</code> / <code>_nogap</code> screen split is <strong>not</strong> registered and SHALL NOT be</td></tr><tr><td><strong>Balances to CleverTap</strong></td><td><strong>No.</strong> Rule R5 and the privacy NFR agree. <code>amount_paise</code> — what <em>moved</em> — is lawful; any balance is not. What carries each question instead is in <a href="../03-instrumentation/product-requirements-events-and-funnels.md">Events &amp; Funnels §6</a></td></tr><tr><td><strong>Reservation at request</strong></td><td><strong>Removed.</strong> Rule W3: a request reserves nothing and settles at end of day against whatever is available then. Rule W4 (one open request) now carries the double-spend protection alone</td></tr><tr><td><strong>Statement format</strong></td><td>CSV only. No PDF in this phase</td></tr><tr><td><strong>Bank account management</strong></td><td>Profile owns add / delete / set-primary. FMS consumes the list and never mutates it</td></tr><tr><td><strong>Balances</strong></td><td>Merged. No segment-level segregation this phase, but entries must still record their segment</td></tr></tbody></table></div>
+<hr>
+</section>
+<section id="s5"><h2><span class="secnum">5</span><span>The invariants — target zero, not a trend</span></h2>
+<p>These are not KPIs to improve. Any occurrence is a defect.</p>
+<ul><li>No withdrawal accepted against a correctly-computed withdrawable figure is later refused for insufficiency</li><li>No duplicate credit for one payment, however many confirmations arrive</li><li>No day on which the ledger's entries fail to sum to its stated balance</li><li>No account reaches a debit balance without having been told</li><li>Every payout arrives by the time quoted at request — the bar is <strong>100%</strong>, and it reads below the moment one payout is late</li></ul>
+<hr>
+</section>
+<section id="s6"><h2><span class="secnum">6</span><span>Instrumentation, in one paragraph</span></h2>
+<p>FMS registers <strong>74 values, 5 property claims and zero new event names</strong>. Event names are the scarce resource — 512 per CleverTap account, permanent, product-wide, not reclaimable — so <strong>every funnel step is a filter on a name that already exists</strong>. Thirteen funnels, F1 to F13, are defined in <a href="../03-instrumentation/product-requirements-events-and-funnels.md">§7</a> with their nodes and close conditions. The taxonomy's one emission blocker was closed on 19 Aug. <strong>Nothing has been emitted yet</strong> (OD-2, confirmed 20 Aug), which means value renames are still free — and stop being free the moment the first event fires.</p>
+<hr>
+</section>
+<section id="s7"><h2><span class="secnum">7</span><span>Open, non-blocking</span></h2>
+<p>Carried so they are not lost: the exact-amount debt exception below the ₹100 minimum (finance); statutory retention for movements, corrections and statements (compliance); whether <em>available margin</em> gets a derivation as well as <em>withdrawable</em> (product); two-person ledger correction when the ops console is scoped (compliance); the SLA for handling a returned payout (operations); and six open instrumentation decisions, FMS-OD-4 to FMS-OD-9, in <a href="../03-instrumentation/product-requirements-events-and-funnels.md">§11</a>.</p>
+</section>
+</main></div>
+<div class="foot">
+  <span>Thinq &middot; Fund Management System</span>
+  <span>This document decides nothing &mdash; the PRDs govern</span>
+  <span>Phase 1 ships without any answer on this page</span>
+</div>
+</div>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('.rail a')),map={};
+  links.forEach(function(a){var t=document.querySelector(a.getAttribute('href'));if(t)map[a.getAttribute('href')]=t;});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;
+    links.forEach(function(a){a.classList.toggle('on',map[a.getAttribute('href')]===e.target);});});},
+    {rootMargin:'-10% 0px -80% 0px',threshold:0});
+  Object.keys(map).forEach(function(k){io.observe(map[k]);});
+})();
+</script>

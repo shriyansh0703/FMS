@@ -1,0 +1,982 @@
+{
+  "schemaVersion": "1.0",
+  "feature": "001-fund-management-system",
+  "stage": "7 - Planning",
+  "generatedFrom": [
+    ".ai/artifacts/lld-backend.md",
+    ".ai/artifacts/lld-frontend.md",
+    ".ai/artifacts/lld.md"
+  ],
+  "gatingReview": {
+    "artifact": ".ai/artifacts/lld-review.md",
+    "verdict": "APPROVED",
+    "iteration": 2
+  },
+  "architecture": {
+    "style": "modular monolith",
+    "backend": "Java 21, Spring Boot",
+    "datastore": "PostgreSQL single primary",
+    "migrations": "Flyway forward-only from V21",
+    "client": "React 18, TypeScript, TanStack Query, client-rendered",
+    "money": "integer paise"
+  },
+  "modules": [
+    "derivation",
+    "movement",
+    "ledger-view",
+    "health",
+    "messaging",
+    "integration",
+    "platform",
+    "web/features/funds"
+  ],
+  "criticalPath": [
+    "TASK-06",
+    "TASK-09",
+    "TASK-10",
+    "TASK-17",
+    "TASK-18",
+    "TASK-22",
+    "TASK-38",
+    "TASK-39",
+    "TASK-40",
+    "TASK-42",
+    "TASK-45",
+    "TASK-47"
+  ],
+  "externalBlockers": [
+    {
+      "id": "TASK-01",
+      "blocks": [
+        "TASK-10",
+        "TASK-24"
+      ],
+      "escalation": "Answered 21 Aug 26 from the contract: date-bounded per-account querying is supported (Client_code, FromDate, ToDate all mandatory); paging is not offered. The read-through stands and no entry mirror is needed. FMS bounds its own ranges and pages within them."
+    },
+    {
+      "id": "TASK-02",
+      "blocks": [
+        "TASK-35"
+      ],
+      "escalation": "No channel-grant registry exists in any document. Ask the platform team that registers X-Service-Principal, for the grant AND the template keys with their declared parameters. Empirical check: submit one whatsapp notification in non-production; 403 channel_not_permitted is a definitive no."
+    },
+    {
+      "id": "TASK-04",
+      "blocks": [
+        "TASK-15"
+      ],
+      "escalation": "Held as a Phase 1 gate. TechExcel's Ledger carries SETL_PAYINDATE and MKT_TYPE (M-T+1 Normal, Z-T+1 Trade to trade) per trade entry, which suggests Rule B4 needs no calendar arithmetic and EB-9 returns to gating Phase 3 as the PRD had it. Unchanged pending back-office confirmation, because the finding relaxes rather than tightens, and a partial correction would contradict hld.md and traceability.md."
+    },
+    {
+      "id": "TASK-05",
+      "blocks": [
+        "TASK-31"
+      ],
+      "escalation": "Phase 3 does not ship until authentication rules on out-of-band protection."
+    }
+  ],
+  "taskCount": 47,
+  "stageCount": 12,
+  "note": "unlocks is intentionally absent: it is the inverse of dependsOn and storing both invites drift. planning.md's dependency matrix shows both directions for human reading.",
+  "tasks": [
+    {
+      "id": "TASK-01",
+      "name": "Confirm TechExcel Ledger date-bounded paging",
+      "module": "integration",
+      "kind": "external",
+      "purpose": "Establish whether the transaction list is a read-through or needs a local entry mirror",
+      "stage": 1,
+      "phase": 0,
+      "dependsOn": [],
+      "dependencyType": "Independent",
+      "lldReference": "OA-6",
+      "requirements": []
+    },
+    {
+      "id": "TASK-02",
+      "name": "Confirm the whatsapp channel grant and address format",
+      "module": "messaging",
+      "kind": "external",
+      "purpose": "Establish whether four communications requirements keep their channel",
+      "stage": 1,
+      "phase": 0,
+      "dependsOn": [],
+      "dependencyType": "Independent",
+      "lldReference": "OA-2",
+      "requirements": [
+        "REQ-602",
+        "REQ-604",
+        "REQ-624",
+        "REQ-626"
+      ]
+    },
+    {
+      "id": "TASK-03",
+      "name": "Confirm TechExcel duplication-validation distinguishability",
+      "module": "integration",
+      "kind": "external",
+      "purpose": "Establish whether the duplication check can act as a second line behind the status query",
+      "stage": 1,
+      "phase": 0,
+      "dependsOn": [],
+      "dependencyType": "Independent",
+      "lldReference": "OA-7",
+      "requirements": []
+    },
+    {
+      "id": "TASK-04",
+      "name": "Nominate the trading and settlement calendar source",
+      "module": "integration",
+      "kind": "external",
+      "purpose": "EB-9. Nominate the trading and settlement calendar source. Held as a Phase 1 gate deliberately: evidence in external-questions.md A2 suggests Rule B4 may not need it, which would move this to Phase 3, but the finding only relaxes a constraint and acting on it would put four approved documents in contradiction. Confirm, then correct all four together or none.",
+      "stage": 1,
+      "phase": 0,
+      "dependsOn": [],
+      "dependencyType": "Independent",
+      "lldReference": "EB-9",
+      "requirements": [
+        "REQ-303",
+        "REQ-307",
+        "REQ-707"
+      ]
+    },
+    {
+      "id": "TASK-05",
+      "name": "Obtain the authentication ruling on out-of-band withdrawal protection",
+      "module": "movement",
+      "kind": "external",
+      "purpose": "C-Q8. Phase 3 does not ship until authentication rules",
+      "stage": 1,
+      "phase": 0,
+      "dependsOn": [],
+      "dependencyType": "Independent",
+      "lldReference": "C-Q8",
+      "requirements": []
+    },
+    {
+      "id": "TASK-06",
+      "name": "Shared kernel: Money, AccountRef, exception hierarchy",
+      "module": "platform",
+      "kind": "code",
+      "purpose": "Integer-paise money type and the section 7.7 exception tree",
+      "stage": 1,
+      "phase": 1,
+      "dependsOn": [],
+      "dependencyType": "Independent",
+      "lldReference": "lld-backend.md#7-concurrency-thread-safety--edge-cases",
+      "requirements": []
+    },
+    {
+      "id": "TASK-07",
+      "name": "Schema: money movement, V21 to V23",
+      "module": "platform",
+      "kind": "code",
+      "purpose": "payout_request with the Rule W4 partial unique index, payin_attempt with the Rule A6 index, route_cap_usage",
+      "stage": 2,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-06"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#22-database-schema",
+      "requirements": [
+        "REQ-302",
+        "REQ-701"
+      ]
+    },
+    {
+      "id": "TASK-08",
+      "name": "Schema: audit and messaging, V24 to V26",
+      "module": "platform",
+      "kind": "code",
+      "purpose": "movement_state_event, derivation_snapshot, message_intent with scheduled_for, message_delivery",
+      "stage": 2,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-06"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#22-database-schema",
+      "requirements": [
+        "REQ-405",
+        "REQ-623",
+        "REQ-625"
+      ]
+    },
+    {
+      "id": "TASK-09",
+      "name": "Vendor anti-corruption base",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "Timeout, circuit breaker, paise conversion in both directions, error translation",
+      "stage": 2,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-06"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#31-design-patterns-and-why-each-earns-its-place",
+      "requirements": []
+    },
+    {
+      "id": "TASK-10",
+      "name": "TechExcel gateway",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "Ledger, payment status, payout instruction, and the settlement-outcome mapping",
+      "stage": 3,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-09",
+        "TASK-01"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#45-mapping-the-settlement-outcome-to-a-reason-the-user-can-read",
+      "requirements": [
+        "REQ-308",
+        "REQ-401",
+        "REQ-404"
+      ]
+    },
+    {
+      "id": "TASK-11",
+      "name": "RMS gateway (Kambala Noren)",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "GetRmsLimits, GetWithdrawalAmt, and the funds/payin/payout subscribe streams",
+      "stage": 3,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-09"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#61-the-derivation-contract",
+      "requirements": [
+        "REQ-107",
+        "REQ-103",
+        "REQ-106"
+      ]
+    },
+    {
+      "id": "TASK-12",
+      "name": "Juspay gateway",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "UPI collect, UPI intent, netbanking, order status, refunds, IFSC validation",
+      "stage": 3,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-09"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#add-funds",
+      "requirements": [
+        "REQ-202",
+        "REQ-205",
+        "REQ-306"
+      ]
+    },
+    {
+      "id": "TASK-13",
+      "name": "Profile client",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "Verified-account list read per decision point, and exposure of accounts with money in flight",
+      "stage": 3,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-09"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#add-funds",
+      "requirements": [
+        "REQ-203",
+        "REQ-706",
+        "REQ-706a"
+      ]
+    },
+    {
+      "id": "TASK-14",
+      "name": "Communication Service client",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "Submit with request_id, read status, one channel per call, template-version capture",
+      "stage": 3,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-09"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#79-a-message-that-is-never-sent-and-nothing-says-so",
+      "requirements": [
+        "REQ-623",
+        "REQ-625"
+      ]
+    },
+    {
+      "id": "TASK-15",
+      "name": "SettlementCalendar",
+      "module": "integration",
+      "kind": "code",
+      "purpose": "Settlement-day arithmetic for Rule B4 and Rule B6, with an explicit unavailable state",
+      "stage": 3,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-09",
+        "TASK-04"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#14-open-assumptions",
+      "requirements": [
+        "REQ-303",
+        "REQ-307"
+      ]
+    },
+    {
+      "id": "TASK-16",
+      "name": "WithdrawableCalculator and its property tests",
+      "module": "derivation",
+      "kind": "code",
+      "purpose": "Rule B4's six terms and Rule B9's floor-at-zero exception. Pure, no I/O",
+      "stage": 2,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-06"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#62-derive--full-pseudocode",
+      "requirements": [
+        "REQ-102",
+        "REQ-506"
+      ]
+    },
+    {
+      "id": "TASK-17",
+      "name": "SnapshotAssembler and MarginSourceSelector",
+      "module": "derivation",
+      "kind": "code",
+      "purpose": "One immutable input set with its instant and source; the hard cutover at the payoutCutoff boundary",
+      "stage": 4,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-10",
+        "TASK-11",
+        "TASK-15"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#31-design-patterns-and-why-each-earns-its-place",
+      "requirements": [
+        "REQ-107"
+      ]
+    },
+    {
+      "id": "TASK-18",
+      "name": "BalanceDerivationService and the RMS reconciliation",
+      "module": "derivation",
+      "kind": "code",
+      "purpose": "derive(): assemble, compute, reconcile against GetWithdrawalAmt, persist at decision points",
+      "stage": 5,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-16",
+        "TASK-17",
+        "TASK-08"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#62-derive--full-pseudocode",
+      "requirements": [
+        "REQ-101",
+        "REQ-102",
+        "REQ-104"
+      ]
+    },
+    {
+      "id": "TASK-19",
+      "name": "OA-1 contract test: does RMS apply Rule B4's deductions?",
+      "module": "derivation",
+      "kind": "test",
+      "purpose": "Five account shapes. Exists to disprove OA-1 before the surfaces assume the reconciliation",
+      "stage": 6,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-18"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#8-test-strategy",
+      "requirements": []
+    },
+    {
+      "id": "TASK-20",
+      "name": "Integrity check and its gate",
+      "module": "derivation",
+      "kind": "code",
+      "purpose": "Hourly in market hours and before the run; blocks money movement on failure",
+      "stage": 6,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-10",
+        "TASK-18"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#8-test-strategy",
+      "requirements": []
+    },
+    {
+      "id": "TASK-21",
+      "name": "EntryDescriptionMapper",
+      "module": "ledger-view",
+      "kind": "code",
+      "purpose": "Back-office fields to a plain-language copy key, with a designed unmapped case",
+      "stage": 4,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-10"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#63b-entrydescriptionmapper--req-401s-whole-substance",
+      "requirements": [
+        "REQ-401"
+      ]
+    },
+    {
+      "id": "TASK-22",
+      "name": "Funds summary API",
+      "module": "derivation",
+      "kind": "code",
+      "purpose": "Three figures, the full derivation, computed-at with source, per-action availability",
+      "stage": 6,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-18",
+        "TASK-13"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#42-request-and-response-dtos",
+      "requirements": [
+        "REQ-101",
+        "REQ-102",
+        "REQ-107",
+        "REQ-201",
+        "REQ-709",
+        "REQ-710"
+      ]
+    },
+    {
+      "id": "TASK-23",
+      "name": "Margin breakdown API",
+      "module": "derivation",
+      "kind": "code",
+      "purpose": "Named components, cash and collateral separated, blocked money on two axes, per-trade-kind figures",
+      "stage": 6,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-18"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#balances-and-margin",
+      "requirements": [
+        "REQ-103",
+        "REQ-104",
+        "REQ-105",
+        "REQ-106"
+      ]
+    },
+    {
+      "id": "TASK-24",
+      "name": "Transaction list and detail API",
+      "module": "ledger-view",
+      "kind": "code",
+      "purpose": "Two views over one running balance; full state timeline with reasons and references",
+      "stage": 7,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-21",
+        "TASK-08",
+        "TASK-01"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#transactions-and-statements",
+      "requirements": [
+        "REQ-402",
+        "REQ-403",
+        "REQ-404",
+        "REQ-405"
+      ]
+    },
+    {
+      "id": "TASK-25",
+      "name": "Statement CSV export",
+      "module": "ledger-view",
+      "kind": "code",
+      "purpose": "Exactly the view and period on screen, streamed, masked per Profile PR-32",
+      "stage": 8,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-24"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#transactions-and-statements",
+      "requirements": [
+        "REQ-407"
+      ]
+    },
+    {
+      "id": "TASK-26",
+      "name": "Account health API",
+      "module": "health",
+      "kind": "code",
+      "purpose": "Dues with cause and accrual, ordered blockers, shortfall and its deadline",
+      "stage": 7,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-18",
+        "TASK-13"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#account-health",
+      "requirements": [
+        "REQ-501",
+        "REQ-502",
+        "REQ-505",
+        "REQ-506"
+      ]
+    },
+    {
+      "id": "TASK-27",
+      "name": "Route selection and the cap ledger",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "Per-account per-route daily caps that no external system knows; automatic selection",
+      "stage": 4,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-07",
+        "TASK-12"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#configuration",
+      "requirements": [
+        "REQ-701",
+        "REQ-702"
+      ]
+    },
+    {
+      "id": "TASK-28",
+      "name": "Payin quote API",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "Chosen route, arrival date from the route, cost, and the minimum including the debt waiver",
+      "stage": 8,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-27",
+        "TASK-26"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#add-funds",
+      "requirements": [
+        "REQ-202",
+        "REQ-703"
+      ]
+    },
+    {
+      "id": "TASK-29",
+      "name": "Payin attempt lifecycle and gateway callback",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "Rule A6 idempotency, signature verification before parsing, per-outcome failure mapping",
+      "stage": 9,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-28",
+        "TASK-13",
+        "TASK-07"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#add-funds",
+      "requirements": [
+        "REQ-204",
+        "REQ-205",
+        "REQ-206",
+        "REQ-207",
+        "REQ-614"
+      ]
+    },
+    {
+      "id": "TASK-30",
+      "name": "InstructionKey encoding",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "The twenty-digit encoding, the separate sequence for a mandated return, the overflow assertion",
+      "stage": 2,
+      "phase": 3,
+      "dependsOn": [
+        "TASK-06"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#63a-the-instruction-key-and-the-twenty-digits-it-must-fit-in",
+      "requirements": []
+    },
+    {
+      "id": "TASK-31",
+      "name": "Payout request, cancel and state machine",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "Rule W4 enforced by the index, the Rule W3a warning before commitment, the transition table",
+      "stage": 7,
+      "phase": 3,
+      "dependsOn": [
+        "TASK-07",
+        "TASK-22",
+        "TASK-13",
+        "TASK-05"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#75-payout-state-transitions",
+      "requirements": [
+        "REQ-301",
+        "REQ-302",
+        "REQ-303",
+        "REQ-305",
+        "REQ-707"
+      ]
+    },
+    {
+      "id": "TASK-32",
+      "name": "PayoutRail and the startup singularity assertion",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "One interface, one implementation, and a fail-to-boot when more than one bean is present",
+      "stage": 4,
+      "phase": 3,
+      "dependsOn": [
+        "TASK-10",
+        "TASK-30"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#76-asserting-the-single-payout-rail",
+      "requirements": []
+    },
+    {
+      "id": "TASK-33",
+      "name": "End-of-day run",
+      "module": "movement",
+      "kind": "code",
+      "purpose": "Leader lock, integrity precondition, combine-before-instruct, status query before reissuing",
+      "stage": 8,
+      "phase": 3,
+      "dependsOn": [
+        "TASK-31",
+        "TASK-32",
+        "TASK-20"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#63-the-end-of-day-run--full-pseudocode",
+      "requirements": [
+        "REQ-307",
+        "REQ-308",
+        "REQ-617",
+        "REQ-618",
+        "REQ-619"
+      ]
+    },
+    {
+      "id": "TASK-34",
+      "name": "Message intents and relay re-evaluation",
+      "module": "messaging",
+      "kind": "code",
+      "purpose": "Scheduled intents, due-claiming, and the drop-on-resolve before dispatch",
+      "stage": 4,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-08",
+        "TASK-14"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#22-database-schema",
+      "requirements": [
+        "REQ-622"
+      ]
+    },
+    {
+      "id": "TASK-35",
+      "name": "Message content and channel resolution",
+      "module": "messaging",
+      "kind": "code",
+      "purpose": "The ladder, the dues banding, movement outcomes, and channel resolved from state",
+      "stage": 7,
+      "phase": 4,
+      "dependsOn": [
+        "TASK-34",
+        "TASK-18",
+        "TASK-02"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#communications",
+      "requirements": [
+        "REQ-601",
+        "REQ-602",
+        "REQ-603",
+        "REQ-604",
+        "REQ-608",
+        "REQ-609",
+        "REQ-611",
+        "REQ-612",
+        "REQ-613",
+        "REQ-615",
+        "REQ-616",
+        "REQ-620",
+        "REQ-621",
+        "REQ-624",
+        "REQ-626"
+      ]
+    },
+    {
+      "id": "TASK-36",
+      "name": "Delivery reconciler and resubmission",
+      "module": "messaging",
+      "kind": "code",
+      "purpose": "Poll terminal statuses, resubmit under a new request_id, alert when a live intimation fails on every channel",
+      "stage": 8,
+      "phase": 4,
+      "dependsOn": [
+        "TASK-35"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#79-a-message-that-is-never-sent-and-nothing-says-so",
+      "requirements": [
+        "REQ-623",
+        "REQ-627"
+      ]
+    },
+    {
+      "id": "TASK-37",
+      "name": "Observability",
+      "module": "platform",
+      "kind": "code",
+      "purpose": "Metrics, the four correctness alerts, and the support-visible delivery log",
+      "stage": 10,
+      "phase": 4,
+      "dependsOn": [
+        "TASK-18",
+        "TASK-29",
+        "TASK-33",
+        "TASK-36"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-backend.md#8-test-strategy",
+      "requirements": [
+        "REQ-623",
+        "REQ-627"
+      ]
+    },
+    {
+      "id": "TASK-38",
+      "name": "Client foundation",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "DTOs, the view-model mapping at the boundary, Money formatting, the query-key factory",
+      "stage": 7,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-22"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#8-type-definitions",
+      "requirements": []
+    },
+    {
+      "id": "TASK-39",
+      "name": "Summary query, invalidation and focus refetch",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "One summary query, movement-scoped invalidation, and refetch on window focus",
+      "stage": 8,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-38"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#91-the-invalidation-rule",
+      "requirements": [
+        "REQ-107"
+      ]
+    },
+    {
+      "id": "TASK-40",
+      "name": "Balance surface and derivation panel",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "Three figures that never collapse, the skeleton loading state, every term including zeros",
+      "stage": 9,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-39"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#71-balancecard--derivationpanel--req-101-req-102-req-107",
+      "requirements": [
+        "REQ-101",
+        "REQ-102",
+        "REQ-104",
+        "REQ-107"
+      ]
+    },
+    {
+      "id": "TASK-41",
+      "name": "Health banner and the blocked route swap",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "One state by precedence; the blocker renders in place of the funding path",
+      "stage": 9,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-39",
+        "TASK-26"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#72-healthbanner--req-501-req-504-req-505-req-506",
+      "requirements": [
+        "REQ-501",
+        "REQ-504",
+        "REQ-505",
+        "REQ-506"
+      ]
+    },
+    {
+      "id": "TASK-42",
+      "name": "ActionButton",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "aria-disabled with its reason, focusable, and activation that diverts rather than doing nothing",
+      "stage": 10,
+      "phase": 3,
+      "dependsOn": [
+        "TASK-40"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#74-actionbutton--req-301-rule-w2",
+      "requirements": [
+        "REQ-301"
+      ]
+    },
+    {
+      "id": "TASK-43",
+      "name": "useAmountField and AmountInput",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "Keystroke-level refusal including paste, blur normalisation, pre-fill, the minimum before entry",
+      "stage": 9,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-38"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#73-amountinput--req-201-rule-a13",
+      "requirements": [
+        "REQ-201",
+        "REQ-502"
+      ]
+    },
+    {
+      "id": "TASK-44",
+      "name": "Add funds dialog",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "The quote, the source-account control, and both post-funding branches",
+      "stage": 10,
+      "phase": 2,
+      "dependsOn": [
+        "TASK-43",
+        "TASK-28"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#75-postfundingconfirmation--req-709-req-710",
+      "requirements": [
+        "REQ-202",
+        "REQ-203",
+        "REQ-709",
+        "REQ-710"
+      ]
+    },
+    {
+      "id": "TASK-45",
+      "name": "Withdraw dialog",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "The shrink warning before commitment, the arrival date, cancellation",
+      "stage": 11,
+      "phase": 3,
+      "dependsOn": [
+        "TASK-42",
+        "TASK-31"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#7-component-specifications",
+      "requirements": [
+        "REQ-301",
+        "REQ-303",
+        "REQ-305"
+      ]
+    },
+    {
+      "id": "TASK-46",
+      "name": "Transaction list, detail and export",
+      "module": "web/features/funds",
+      "kind": "code",
+      "purpose": "Two views, lifted period and view, virtualised table, reversal pairing, the card breakpoint",
+      "stage": 9,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-38",
+        "TASK-24",
+        "TASK-25"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#76-transactionlistpage--req-402-req-403-req-404",
+      "requirements": [
+        "REQ-402",
+        "REQ-403",
+        "REQ-404",
+        "REQ-405",
+        "REQ-407"
+      ]
+    },
+    {
+      "id": "TASK-47",
+      "name": "Accessibility suite",
+      "module": "web/features/funds",
+      "kind": "test",
+      "purpose": "Keyboard-only traversal of every money action, the scoped live region, axe per surface per state",
+      "stage": 12,
+      "phase": 1,
+      "dependsOn": [
+        "TASK-40",
+        "TASK-41",
+        "TASK-42",
+        "TASK-43",
+        "TASK-44",
+        "TASK-45",
+        "TASK-46"
+      ],
+      "dependencyType": "Hard Dependency",
+      "lldReference": "lld-frontend.md#16-accessibility--wcag-21-aa-fa-2",
+      "requirements": []
+    }
+  ],
+  "answersRecorded": {
+    "artifact": ".ai/artifacts/external-questions.md",
+    "date": "2026-08-21",
+    "answered": [
+      "TASK-01",
+      "TASK-03"
+    ],
+    "partiallyAnswered": [
+      "TASK-04"
+    ],
+    "open": [
+      "TASK-02",
+      "TASK-05"
+    ]
+  }
+}

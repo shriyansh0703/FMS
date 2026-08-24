@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FMS — Funds</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>₹</text></svg>">
+<link rel="stylesheet" href="styles.css?v=62">
+</head>
+<body>
+
+<!-- ============ scenario bar ============ -->
+<div class="scenarios">
+  <span class="scen-label">Demo account</span>
+  <div class="scen-btns" id="scenBtns"></div>
+  <button class="scen-comms" id="commsBtn" type="button">What Thinq sends →</button>
+  <a class="scen-link" href="dashboard.html">Money-movement dashboard →</a>
+  <span class="scen-note">Each state is one the PRD requires a designed answer for</span>
+</div>
+
+<div class="scenarios sub" id="variantBar" hidden>
+  <span class="scen-label">Cause</span>
+  <div class="scen-btns" id="varBtns"></div>
+  <span class="scen-note">The same state arises several ways; each needs its own explanation</span>
+</div>
+
+<div class="scenarios sub" id="outcomeBar">
+  <span class="scen-label" id="outcomeLabel">Next payin</span>
+  <div class="scen-btns" id="outcomeBtns"></div>
+  <span class="scen-note" id="outcomeNote"></span>
+</div>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand"><span class="mark">₹</span> <b>FMS</b> <span class="brand-sub">Funds</span></div>
+    <nav class="nav">
+      <a class="on" href="#">Funds</a><a href="#">Positions</a><a href="#">Orders</a><a href="#">Holdings</a>
+    </nav>
+    <div class="who" id="who"></div>
+  </div>
+</header>
+
+<main class="wrap grid" id="app">
+
+  <h1 class="sr-only">Funds</h1>
+
+  <!-- ============ LEFT: state ============ -->
+  <section class="col-main">
+
+    <!-- blocked / empty / debit banner -->
+    <div id="stateBanner"></div>
+
+    <!-- three balances -->
+    <!-- applies to every card below -->
+    <div class="cardctl">
+      <button class="linkbtn" id="toggleZeros">Hide ₹0 rows</button>
+    </div>
+
+    <div class="card" id="balanceCard">
+      <div class="card-hd">
+      </div>
+      <div class="three" id="three"></div>
+      <div class="hint" id="gapHint"></div>
+
+      <!-- tail: what makes up the cash figure above -->
+      <div id="marginTail">
+        <div id="marginBody"></div>
+      </div>
+    </div>
+
+    <!-- margin decomposition -->
+    <!-- margin used -->
+    <div class="card" id="usedCard">
+      <div class="card-hd">
+        <h2>Margin Summary</h2>
+        <button class="ibtn" id="usedInfoAll" type="button"
+                aria-label="Show all descriptions" aria-expanded="false">i</button>
+      </div>
+      <div id="usedBody"></div>
+    </div>
+
+    <!-- deployability -->
+    <div class="card" id="deployCard">
+      <div class="card-hd"><h2>Available to trade</h2></div>
+      <div id="deployBody"></div>
+    </div>
+
+    <!-- transactions -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>Transactions</h2>
+        <div class="seg" id="txTabs">
+          <button data-tab="payin" class="on">Payin</button>
+          <button data-tab="payout">Payout</button>
+          <button data-tab="all">All</button>
+        </div>
+      </div>
+      <div class="range" id="rangeRow"></div>
+      <div id="txBody"></div>
+    </div>
+
+  </section>
+
+  <!-- ============ RIGHT: actions ============ -->
+  <aside class="col-side">
+    <div class="card pad0" id="actionCard">
+      <div class="seg seg-full" id="actTabs">
+        <button data-act="add" class="on">Add money</button>
+        <button data-act="out">Withdraw</button>
+      </div>
+      <div id="actBody"></div>
+    </div>
+
+    <div class="upnote" id="upcoming"></div>
+  </aside>
+</main>
+
+<!-- ============ outcome modal ============ -->
+<div class="scrim" id="resScrim" hidden></div>
+<div class="resmod" id="resMod" hidden role="alertdialog" aria-modal="true" aria-labelledby="resTitle">
+  <button class="res-x" id="resX" type="button" aria-label="Close">&#10005;</button>
+  <div class="res-ic" id="resIc" aria-hidden="true"></div>
+  <h3 id="resTitle"></h3>
+  <div class="res-amt" id="resAmt"></div>
+  <p class="res-why" id="resWhy"></p>
+  <div class="res-act" id="resAct"></div>
+</div>
+
+<!-- ============ toast ============ -->
+<div class="toastwrap" id="toastWrap" role="status" aria-live="polite"></div>
+
+<!-- ============ derivation drawer ============ -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+  <div class="drawer-hd">
+    <h3 id="drawerTitle">Withdrawable balance</h3>
+  <button class="ibtn" id="drawerInfoAll" type="button"
+          aria-label="Show all descriptions" aria-expanded="false">i</button>
+    <button class="x" id="drawerX" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-bd" id="drawerBody"></div>
+</div>
+
+<footer class="wrap foot">
+  <p>Prototype of the <b>Fund Management System</b> — every figure is derived from one definition, per Rule B12.
+  Money is held as integer paise; nothing here is a float</p>
+  <p class="foot-dim">Mock data. No real money, no real bank, no network calls. Built against <code>product-requirements.md</code></p>
+</footer>
+
+<script src="app.js?v=258"></script>
+</body>
+</html>
