@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: fms-backoffice
+
+  # The operator-facing switches live in their own file, OUTSIDE the jar, so they can be edited per
+  # environment without a rebuild. `optional:` so a missing file leaves the defaults below in
+  # force — and the default is MOCK. Defaulting the other way is how a laptop ends up posting into
+  # a broker's back office.
+  config:
+    import: optional:file:./properties/techexcel.properties
+
+  jackson:
+    # THERE IS DELIBERATELY NO `default-property-inclusion: non_null` HERE, and its absence is
+    # load-bearing. TechExcel's documented rows carry literal nulls — CONAME and BILLNO on a ledger
+    # row, every Rem_* column on an unshared interest row — and a global non_null would delete
+    # those keys from the response. A caller reads "present and null" differently from "absent".
+    default-property-inclusion: always
+
+server:
+  port: 8080
+  error:
+    # Nothing about our internals goes back on an error path. ApiErrorHandler owns the body.
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # health ONLY. `env` and `configprops` would expose the TechExcel credential this process
+        # holds in managed mode, and `heapdump` would expose every token that has passed through it.
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# THE SWITCH. Full reasoning, and how to flip it, is in properties/techexcel.properties — the file
+# an operator edits. These are the fallbacks that apply when that file is absent.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+techexcel:
+  live: false
+  base-url: ""
+  timeout: 30s
+
+  auth:
+    # MANAGED IS REQUIRED WHENEVER live=true, and VendorGateway refuses to start otherwise.
+    # Callers have no way to present a TechExcel token — there is no login route — so a live
+    # gateway holding no credential of its own can only produce Token Missing on every call.
+    # Mock mode needs no credential at all, which is why this can stay passthrough by default.
+    mode: passthrough
+    refresh-cron: 0 0 * * * *
+    refresh-after: 20h
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# THE RATE LIMIT — how much one caller may spend, per endpoint, in a window.
+#
+# EVERY NUMBER HERE IS A GUESS AND IS MEANT TO BE CHANGED. Nobody has measured what a real consumer
+# does and TechExcel documents no quota of its own, so these are configuration precisely so the
+# first person who needs a different number does not need a release. Override per environment:
+#
+#   BACKOFFICE_RATELIMIT_DEFAULTS_REQUESTS=120
+#   java -Dbackoffice.ratelimit.per-endpoint.ledger.requests=5 -jar ...
+#
+# "Per caller" means per bearer token, falling back to remote address where there is no token.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+backoffice:
+  ratelimit:
+    enabled: true
+    max-tracked-callers: 10000
+    defaults:
+      requests: 60
+      window: 1m
+    per-endpoint:
+      # A full financial year for a merged family group is thousands of rows and took the vendor's
+      # own capture over three seconds. It does not belong in the same bucket as a single-day
+      # brokerage sharing report.
+      ledger:
+        requests: 10
+        window: 1m
+      # A process run over a date range, not a lookup. Same reasoning.
+      new_interest_process:
+        requests: 10
+        window: 1m
+
+logging:
+  level:
+    root: INFO
+    com.thinq: INFO

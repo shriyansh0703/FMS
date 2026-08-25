@@ -1,0 +1,112 @@
+// Four dependencies, each one earning its line:
+//
+//   spring-boot-starter-web         the HTTP surface and the JSON codec (Jackson 3 under Boot 4).
+//   spring-boot-starter-validation  Jakarta Bean Validation. The vendor's mandatory / max-length /
+//                                   format tables are declarative data; annotations express them
+//                                   without a hand-written check per field.
+//   spring-boot-starter-actuator    /actuator/health, so an operator can see which mode this
+//                                   process is in without reading a log.
+//   spring-boot-starter-test        JUnit 5 + MockMvc.
+//
+// The upstream client is Spring's RestClient, which arrives with starter-web. No Feign, no
+// WebClient, no HTTP library added.
+//
+// NO MONEY LIBRARY, because nothing here computes with an amount. Every figure that passes
+// through this service is a vendor-scale string relayed untouched. If that ever changes, a money
+// type and integer paise are the only acceptable answer.
+plugins {
+	id 'java'
+	id 'jacoco'
+	id 'org.springframework.boot' version '4.1.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.thinq'
+version = '0.1.0'
+
+// JAVA 25. The toolchain is the single declaration: Gradle resolves a JDK 25 and both compile and
+// test run on it, so a developer whose default JDK is something else still builds what CI builds.
+// Gradle must be 9.1+ to model a Java 25 toolchain at all — see gradle/wrapper.
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// Spring Boot 4 split the test slices out of spring-boot-test-autoconfigure into a module per
+	// technology. @WebMvcTest no longer ships in the starter, so it has to be asked for by name;
+	// without this the starter resolves happily and every @WebMvcTest fails to compile.
+	testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	testLogging { exceptionFormat = 'full' }
+	finalizedBy tasks.named('jacocoTestReport')
+}
+
+// COVERAGE IS MEASURED, NOT ASSERTED. `test` always produces the report, so a number quoted in a
+// document can be re-derived from build/reports/jacoco rather than taken on trust.
+jacoco {
+	toolVersion = '0.8.14'
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+// COVERAGE IS A GATE, NOT A REPORT. A number in an HTML file nobody opens drifts down one
+// convenient exception at a time; a number that fails the build does not.
+//
+// THE FLOORS ARE BELOW THE CURRENT FIGURES ON PURPOSE — 90% against 97.4% instruction, 80%
+// against 83.9% branch. A floor set at today's exact number turns every honest refactor into a
+// red build and teaches people to lower the floor, which is how the gate dies. The headroom is
+// for movement, not for decay: if a change drops instruction coverage by seven points, that is
+// worth a conversation rather than a silent merge.
+//
+// main() and the Spring entry point are excluded rather than tested. A test that starts the
+// application to assert that starting the application works measures the framework, and writing
+// one to move this number would be worse than the gap it fills.
+tasks.named('jacocoTestCoverageVerification') {
+	dependsOn tasks.named('jacocoTestReport')
+	violationRules {
+		rule {
+			element = 'BUNDLE'
+			excludes = ['com.thinq.backoffice.BackofficeApplication']
+			limit {
+				counter = 'INSTRUCTION'
+				minimum = 0.90
+			}
+			limit {
+				counter = 'BRANCH'
+				minimum = 0.80
+			}
+		}
+	}
+}
+
+// `check` is what CI runs, so the gate is on the path CI already takes.
+tasks.named('check') {
+	dependsOn tasks.named('jacocoTestCoverageVerification')
+}
+
+// -parameters keeps constructor parameter names in the class file. Jackson binds records by
+// component name, and without this every request DTO silently binds to null — a failure that
+// looks like a bad client rather than a build setting.
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs << '-parameters'
+	options.encoding = 'UTF-8'
+}
