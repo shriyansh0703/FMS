@@ -1,0 +1,630 @@
+openapi: 3.1.0
+info:
+  title: FMS Back Office API (TechExcel gateway)
+  version: 1.0.0
+  summary: The four Fund Management Service TechExcel endpoints. No caller credential required.
+  contact:
+    name: fms-backoffice
+  description: |
+    This is **TechExcel's** contract, not ours. Every field name, every error
+    code and every date format below is transcribed from the vendor's own API
+    documents. We do not own it and must not "improve" it — a caller written
+    against this spec has to work against the real back office unchanged.
+
+    # Scope: Fund Management Service only
+
+    The vendor's back office serves far more than these four, and the FMS
+    API → Category → Service mapping splits them by owning service. **Only the
+    endpoints that mapping assigns to the Fund Management Service are here** —
+    the ones whose responsibility is funds, charges and the running account.
+
+    `new_segment_enable`, `client_active_inactive_status_update`,
+    `add_brokerage` and `portfolio_insert` appear in the same vendor documents
+    but belong to the **Order Management Service**. They are deliberately absent
+    and return `404` here. Do not add them: two services answering the same
+    write is worse than one service missing a read.
+
+    # One gateway, two far ends
+
+    The `fms-backoffice` service serves this spec in either of two modes, chosen
+    by `techexcel.live` in `properties/techexcel.properties`:
+
+    * `false` — the built-in mock answers. Nothing leaves the host. This is the
+      default, including when the properties file is missing entirely.
+    * `true` — every call is proxied verbatim to the real back office at
+      `techexcel.base-url`, and its answer is returned unchanged.
+
+    The request and response shapes are identical in both modes. If you can tell
+    them apart from a response body, that is a bug in the mock.
+
+    # Read this before you write a client
+
+    **A rejected call still returns HTTP 200.** TechExcel puts the verdict in
+    the body, in `Success` and `Error Code`, not in the status line. Branch on
+    `Success == "True"`, never on the status code.
+
+    The only non-200 answers are this gateway's own, never the vendor's:
+
+    | Status | Meaning |
+    |---|---|
+    | `404` | mock mode, route not documented here |
+    | `429` | this gateway's rate limit — the back office was **not** called |
+    | `502` | live mode, upstream unreachable |
+
+    That last one exists precisely so you can tell "TechExcel said no" from
+    "TechExcel did not answer".
+
+    **Everything is POST**, including the calls that only read. That is the
+    vendor's design.
+
+    **`Success Description` changes type per endpoint.** All four endpoints here
+    are reads and return an array of row objects, but it is the empty string on
+    failure — so it is still not one type.
+
+    **`Error Description` changes type too.** `Input_Validation` returns an
+    object of field name to array of messages; every other code returns a
+    string.
+
+    **Every endpoint here is a read.** Nothing in this service writes to the
+    back office, so a retry costs nothing but time and a rate-limit token.
+
+    **Dates are not uniform.** Requests take `DD/MM/YYYY`; `new_interest_process`
+    documents `DD/MM/YYYY` but its own sample uses `DD-MM-YYYY`, so both are
+    accepted. Responses mix `DD/MM/YYYY` and SQL Server's
+    `YYYY-MM-DD HH:mm:ss.SSS`.
+
+    **Amounts are strings**, sometimes with a leading `.` and no zero (`".00"`),
+    and `debit` on the virtual debit report is negative. Parse them as decimals,
+    never as floats, and never assume a leading digit.
+
+    **Field names carry the vendor's spelling and typos.** `Form_Date` on
+    `new_interest_process` means "From". `REMESHIRE` means "remisier"
+    throughout. `Remshire_Code` drops a letter that `REMESHIRE_CODE` keeps.
+    Bind on the exact key.
+
+    # Authentication
+
+    **You do not authenticate to this service, and you cannot.** There is no
+    login endpoint and no bearer token to obtain.
+
+    This service authenticates to TechExcel **on its own behalf**, from a
+    credential supplied in its environment, and refreshes that token on a
+    schedule ahead of TechExcel's documented 24-hour expiry. None of that is
+    visible on this API: send the documented request body and nothing else.
+
+    An `Authorization` header you send is forwarded upstream unchanged if you
+    send one, but nothing here issues, validates or requires it.
+
+    > **This API has no caller authentication of its own.** Access to it must be
+    > controlled at the network or ingress layer. Anything that can reach this
+    > port can read from the back office through it.
+
+    # Rate limit
+
+    Each caller — identified by bearer token, or by remote address where there
+    is none — gets a token bucket per endpoint. Exceeding it is `429` with
+    `Retry-After`, `X-RateLimit-Limit` and `X-RateLimit-Window`. The numbers are
+    configuration (`backoffice.ratelimit.*`) and are expected to change.
+
+servers:
+  # Relative on purpose. Swagger UI resolves these against whatever origin is
+  # serving the page, so Try It Out works on any port and any host without this
+  # file naming one.
+  - url: /TechBoRest
+    description: This gateway, on TechExcel's own path prefix.
+  - url: /
+    description: The same routes without the prefix. Both work.
+
+tags:
+  - name: Funds
+    description: Amounts held or blocked against a customer.
+  - name: Brokerage
+    description: What a trade costs, who shares it, and what unpaid funds accrue.
+  - name: Accounting
+    description: The customer's running account.
+
+paths:
+  /api/entry/ledger:
+    post:
+      tags: [Accounting]
+      summary: Client ledger for one financial year
+      operationId: ledger
+      description: |
+        `FromDate` and `ToDate` must fall inside a single financial year
+        (1 April to 31 March). A range that crosses one is rejected with
+        `Input_Validation`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerRequest"
+            example:
+              Client_code: M000
+              FromDate: 01/04/2022
+              ToDate: 31/03/2023
+              COCDLIST: BSE_CASH,NSE_CASH
+              ShowMargin: "Y"
+              ShowAllData: "Y"
+              Merge_Company: "Y"
+      responses:
+        "200":
+          description: |
+            Ledger rows in `DEFORDERBY` order. A row with `OPENINGBALANCE: "1"`
+            and `TRANS_TYPE: "OP"` is the opening balance, not a transaction.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Success"
+                  - type: object
+                    properties:
+                      Success Description:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LedgerRow"
+
+  /api/entry/virtual_debit_report:
+    post:
+      tags: [Funds]
+      summary: Virtual debit entries in the client ledger
+      operationId: virtualDebitReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VirtualDebitRequest"
+            example:
+              CLIENT_ID: "0000056743"
+              COMPANY_CODE: NSE_CASH
+              FROMDATE: 01/04/2025
+              TODATE: 30/06/2025
+              BRANCH_CODE: ""
+              datayear: 2025
+      responses:
+        "200":
+          description: Virtual debit rows.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Success"
+                  - type: object
+                    properties:
+                      Success Description:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/VirtualDebitRow"
+
+  /api/entry/new_interest_process:
+    post:
+      tags: [Brokerage]
+      summary: Interest charged to clients over a period
+      operationId: newInterestProcess
+      description: |
+        Only `Report_Type: "1"` (Interest Report) has a documented response
+        shape — the vendor's document says so outright. Types 2 to 5 are valid
+        upstream but their columns are undocumented, so **mock mode rejects them**
+        with `Input_Value_Validation` rather than inventing four contracts. Set
+        `techexcel.live=true` to use them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterestRequest"
+            example:
+              Form_Date: 01-11-2024
+              TO_DATE: 30-11-2024
+              Client_Id: "18836"
+              Report_Type: "1"
+      responses:
+        "200":
+          description: One row per client per interest run.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Success"
+                  - type: object
+                    properties:
+                      Success Description:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/InterestRow"
+
+  /api/entry/brk_remeshire_view:
+    post:
+      tags: [Brokerage]
+      summary: Brokerage earned and its broker/remisier split
+      operationId: brkRemeshireView
+      description: |
+        Reports brokerage and how it is shared between broker and remisiers.
+
+        **The response columns are decided by `POLICY`, not by this spec.** The
+        policy is created in the back office under Common Report → Brk/Remisier,
+        and the vendor's note is "as per policy display the column name in
+        response". The row schema below is the one the document's own
+        `REMISIER SHARING REPORT` sample returns. Treat the columns as data, not
+        as a fixed contract, and do not fail a parse on an unexpected key.
+
+        Note the spelling: the request field is `Remshire_Code` — missing an `e`
+        that the response columns keep.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrkRemeshireRequest"
+            example:
+              CLIENT_ID: ""
+              TO_DATE: 27/02/2025
+              FROM_DATE: 27/02/2025
+              COMPANY_CODE: BSE_CASH,NSE_CASH
+              BRANCH: ""
+              SCRIP_SYMBOL: ""
+              POLICY: REMISIER SHARING REPORT
+              Remshire_Code: ETYJC
+      responses:
+        "200":
+          description: One row per remisier sharing arrangement, per the selected policy.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Success"
+                  - type: object
+                    properties:
+                      Success Description:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BrkRemeshireRow"
+              examples:
+                rows:
+                  value:
+                    Success: "True"
+                    Success Description:
+                      - A1: "1"
+                        TOTAL_BROKERAGE: "323.04"
+                        REMESHIRE_NAME: "JYOTI GUPTA "
+                        SUBREMESHIRE_CODE: ""
+                        REMESHIRE1_BROKERAGE: "274.59"
+                        SUBREMESHIRE2_CODE: null
+                        REMESHIRE2_NAME: null
+                        REMESHIRE2_BROKERAGE: "0.00"
+                        REMESHIRE3_NAME: null
+                        REMESHIRE3_BROKERAGE: "0.00"
+                        OWNBRK: "48.45"
+                    Error Code: ""
+                    Error Description: ""
+                unknownRemisier:
+                  value:
+                    Success: "false"
+                    Success Description: ""
+                    Error Code: Input_Value_Validation
+                    Error Description: Invalid Remeshire Code
+
+components:
+  schemas:
+    Success:
+      type: object
+      required: [Success, Success Description, Error Code, Error Description]
+      properties:
+        Success:
+          type: string
+          const: "True"
+          description: The literal string "True", capital T. Not a boolean.
+        Success Description:
+          description: Array, object or string depending on the endpoint.
+        Error Code:
+          type: string
+          const: ""
+        Error Description:
+          type: string
+          const: ""
+
+    Failure:
+      description: |
+        The rejection envelope. EVERY endpoint here can return this instead of its success shape,
+        with HTTP 200 either way — which is why it is not attached to one response. Branch on
+        `Success`, then read `Error Code`.
+      type: object
+      required: [Success, Success Description, Error Code, Error Description]
+      properties:
+        Success:
+          type: string
+          const: "false"
+          description: The literal string "false", lower case. Note the asymmetry with "True".
+        Success Description:
+          type: string
+          const: ""
+        Error Code:
+          type: string
+          description: |
+            The closed set of codes TechExcel documents. A client should handle
+            every one of these and nothing else.
+          enum:
+            - Input_Validation
+            - SYSTEM_Character_Filter
+            - Input_Value_Validation
+            - Database_Exception
+            - Token Missing
+            - Token Expired
+            - Credential Error
+        Error Description:
+          description: |
+            A plain string for most codes. For `Input_Validation` it is an object
+            of field name to a list of messages.
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+      examples:
+        - Success: "false"
+          Success Description: ""
+          Error Code: Token Missing
+          Error Description: Please Get Credential
+        - Success: "false"
+          Success Description: ""
+          Error Code: Input_Validation
+          Error Description:
+            ToDate: ["The to date must be a date before 2023-03-31 00:00:00.000."]
+
+    LedgerRequest:
+      type: object
+      required: [Client_code, FromDate, ToDate, ShowAllData]
+      properties:
+        Client_code:
+          type: string
+          maxLength: 20
+          description: UCC or account code. `%` and `!` are rejected.
+        FromDate: { type: string, examples: ["01/04/2022"], description: DD/MM/YYYY. }
+        ToDate: { type: string, examples: ["31/03/2023"], description: DD/MM/YYYY, same financial year as FromDate. }
+        COCDLIST:
+          type: string
+          description: Comma-separated segment codes. Blank means all.
+          examples: ["BSE_CASH,NSE_CASH"]
+        ShowAllData: { type: string, enum: ["Y", "N"], description: Case sensitive. }
+        ShowMargin: { type: string, enum: ["Y", "N"] }
+        Merge_Company: { type: string, enum: ["Y", "N"] }
+        TransType:
+          type: string
+          enum: [J, JV, P, SJ, R]
+          description: Journal, Payment, System JV or Receipt. Blank means all.
+
+    LedgerRow:
+      type: object
+      description: |
+        Field order is fixed by the vendor document and reproduced exactly.
+        `faid` is lower case here while the document's table calls it FAID.
+      properties:
+        faid: { type: string, description: Row id in the table. "0" on the opening balance row. }
+        COCD: { type: string, examples: [BSE_CASH] }
+        CONAME: { type: [string, "null"] }
+        KINDOFACCOUNT: { type: string, examples: [PARTY] }
+        ACCOUNTCODE: { type: string }
+        ACCOUNTNAME: { type: string }
+        TELNO: { type: string }
+        FAX: { type: string }
+        ADDR: { type: string }
+        OPENINGBALANCE: { type: string, enum: ["0", "1"], description: 1 marks the opening balance row. }
+        DR_AMT: { type: string, examples: [".00"], description: Debit amount. May have no leading zero. }
+        CR_AMT: { type: string, examples: ["5000.00"] }
+        VOUCHERDATE: { type: string, examples: ["2022-05-23 00:00:00.000"] }
+        SETTLEMENT_NO: { type: string }
+        CTRCODE: { type: string, description: Counter code, e.g. a bank code. }
+        CTRNAME: { type: string }
+        TRANS_TYPE: { type: string, description: "R, P, SJ, JV or OP. Note the trailing space." }
+        VOUCHERNO: { type: string }
+        NARRATION: { type: string }
+        BILLNO: { type: [string, "null"] }
+        CHQNO: { type: string }
+        EXPECTED_DATE: { type: [string, "null"] }
+        TRADING_COCD: { type: [string, "null"] }
+        PANNO: { type: string }
+        EMAIL: { type: string }
+        MANUALVNO: { type: string }
+        BOOKTYPECODE: { type: string, description: "1 Cash, 2 Bank, 3 Direct, 4 Margin." }
+        BILL_DATE: { type: [string, "null"] }
+        MKT_TYPE: { type: [string, "null"] }
+        GROUPCODE: { type: string }
+        BRSFLAG: { type: string, description: Bank reconciliation flag. }
+        SETL_PAYINDATE: { type: [string, "null"] }
+        LAST2SETL: { type: string }
+        ACCOUNTCODE1: { type: [string, "null"] }
+        GATEWAYID: { type: [string, "null"] }
+        PUNCH_TIME: { type: string }
+        voctype: { type: [string, "null"], description: "1, 2 or 1.1 mark a margin credit/debit entry." }
+        CHQIMAGEPATH: { type: [string, "null"] }
+        ContractNo: { type: [string, "null"] }
+        Row_ID: { type: string }
+        USERREFNO: { type: string }
+        LAST_PAYMENT: { type: "null", description: Always null. }
+        LAST_RECEIPT: { type: "null", description: Always null. }
+        TRANS_TYPE1: { type: string, examples: [RECEIPT] }
+        CLOSING_AMT: { type: string }
+        VoucherNo1: { type: string, description: Voucher number without its first digits. }
+        CounterCode: { type: string, examples: ["BSE_CASH-A1736"] }
+        ChqNo1: { type: [string, "null"] }
+        ExpectedDate1: { type: [string, "null"], examples: ["23/05/2022"] }
+        DEFORDERBY: { type: string, description: The sort the back office applied. }
+        VoucherDate1: { type: string, examples: ["23/05/2022"] }
+        BILL_DATE1: { type: [string, "null"] }
+
+    VirtualDebitRequest:
+      type: object
+      required: [FROMDATE, TODATE, COMPANY_CODE, datayear]
+      properties:
+        FROMDATE: { type: string, examples: ["01/06/2024"] }
+        TODATE: { type: string, examples: ["30/06/2025"] }
+        CLIENT_ID: { type: string, maxLength: 10 }
+        BRANCH_CODE: { type: string, maxLength: 20 }
+        COMPANY_CODE: { type: string, maxLength: 175, examples: [BSE_CASH] }
+        datayear:
+          type: [string, integer]
+          description: Four-digit year. The vendor's own sample sends it unquoted.
+          examples: [2025]
+
+    VirtualDebitRow:
+      type: object
+      properties:
+        cocd: { type: string }
+        account_text: { type: string, description: Client code and name joined by a hyphen. }
+        vdate: { type: string, examples: ["13/06/2025"] }
+        debit: { type: string, examples: ["-50000"], description: Negative. }
+        Narration: { type: string }
+        BRANCH_CODE: { type: string }
+
+    InterestRequest:
+      type: object
+      required: [Form_Date, TO_DATE, Report_Type]
+      properties:
+        Form_Date:
+          type: string
+          description: Spelled "Form", not "From". DD/MM/YYYY or DD-MM-YYYY.
+          examples: ["01/06/2023"]
+        TO_DATE: { type: string, examples: ["30/06/2023"] }
+        Client_Id: { type: string, maxLength: 10 }
+        Branch_Code: { type: string, maxLength: 10 }
+        Client_Filter:
+          type: string
+          enum: ["", "1", "2"]
+          description: Blank all clients, 1 interest charged, 2 debit but no interest.
+        Report_Type:
+          type: string
+          enum: ["1", "2", "3", "4", "5"]
+          description: 1 Interest, 2 Interest Summary, 3 Funds Breakup, 4 Collatral, 5 Secpledge.
+
+    InterestRow:
+      type: object
+      description: The Report_Type 1 shape. All amounts are decimal strings.
+      properties:
+        Grp: { type: string }
+        TradeDate: { type: string }
+        COCD: { type: string }
+        Client_Id: { type: string }
+        Funds_Dr: { type: string }
+        Funds_Cr: { type: string, description: Credit in the client ledger (A). }
+        Sec_B1: { type: string }
+        Sec_Applicable: { type: string, description: Approved securities valuation (B). }
+        FD_C: { type: string, description: Fixed deposit amount (C). }
+        OTH_D: { type: string }
+        Total_Collatral_E: { type: string, description: Cash equivalent collateral (E). }
+        Total_Margin: { type: string, description: A+B+C+E. }
+        Pick_Margin: { type: string, description: Peak margin for the trade day. }
+        Applicable_Margin: { type: string }
+        Margin_Short: { type: string }
+        DR_INTEREST: { type: string, description: Debit interest percentage from the client master. }
+        MIN_CASH_MARGIN: { type: string }
+        Funds_Dr_Interest: { type: string }
+        MarginShort_Dr_Interest: { type: string }
+        Total_Interest: { type: string }
+        Posted: { type: string, description: Whether it posts to the client or the remisier. }
+        From_Date: { type: string }
+        To_Date: { type: string }
+        PostLogic: { type: [string, "null"] }
+        MARGIN_INTEREST_PER: { type: string }
+        ADD_INTEREST: { type: string }
+        FIX_INT_AMT: { type: string }
+        INT_AMOUNT_RANGE: { type: string }
+        Pick_Margin_No: { type: string }
+        Funds_Cr_Interest: { type: string }
+        CR_INTEREST: { type: string }
+        MTF_DR_INTEREST: { type: string }
+        MTF_Funds_Dr: { type: string }
+        MTF_CASH_Funds_Dr: { type: string }
+        MTF_Net_Dr: { type: string }
+        MTF_Funds_Dr_Interest: { type: string }
+        MTF_NON_Funds_Cr: { type: string }
+        EPI_E: { type: string, description: Early pay-in amount. }
+        Int_cocd: { type: [string, "null"] }
+        Rem_Sharing_Typ: { type: [string, "null"] }
+        Remeshire_Active_Sharing: { type: [string, "null"] }
+        Remeshire_Code: { type: [string, "null"] }
+        Rem_Funds_Dr_Interest: { type: [string, "null"] }
+        Rem_DR_INTEREST: { type: [string, "null"] }
+        Rem_MarginShort_Dr_Interest: { type: [string, "null"] }
+        Rem_MARGIN_INTEREST_PER: { type: [string, "null"] }
+        Rem_MTF_DR_INTEREST: { type: [string, "null"] }
+        Rem_MTF_Funds_Dr_Interest: { type: [string, "null"] }
+        Rem_Total_Interest: { type: [string, "null"] }
+        Rem_PostLogic: { type: [string, "null"] }
+        CLIENT_NAME: { type: string }
+        Mobile_NO: { type: string }
+        PAN_NO: { type: string }
+        BRANCH_CODE: { type: string }
+        FAMILY_GROUP: { type: string }
+
+    BrkRemeshireRequest:
+      type: object
+      required: [FROM_DATE, TO_DATE, COMPANY_CODE]
+      description: "`%` and `!` are rejected in every field."
+      properties:
+        CLIENT_ID:
+          type: string
+          maxLength: 20
+          description: UCC or account code. Blank means every client.
+        FROM_DATE:
+          type: string
+          description: DD/MM/YYYY.
+          examples: ["01/04/2022"]
+        TO_DATE:
+          type: string
+          description: DD/MM/YYYY.
+          examples: ["31/03/2023"]
+        COMPANY_CODE:
+          type: string
+          maxLength: 20
+          description: Segment codes, comma separated.
+          examples: ["BSE_CASH,NSE_CASH"]
+        BRANCH:
+          type: string
+          maxLength: 20
+          description: Branch code from the branch master.
+          examples: [Main]
+        SCRIP_SYMBOL:
+          type: string
+          maxLength: 20
+          examples: [SBIN]
+        Remshire_Code:
+          type: string
+          maxLength: 175
+          description: |
+            Remisier code. Note the spelling — this request field drops the `e`
+            that the response columns keep.
+          examples: [REM]
+        POLICY:
+          type: string
+          maxLength: 50
+          description: |
+            Name of a policy created under Common Report → Brk/Remisier.
+            **It decides which columns come back.**
+          examples: [REMISIER SHARING REPORT]
+        RELATION_MANAGER:
+          type: string
+          maxLength: 20
+          description: Relationship manager code.
+          examples: [RM]
+
+    BrkRemeshireRow:
+      type: object
+      description: |
+        The columns returned by the document's own `REMISIER SHARING REPORT`
+        sample. A different `POLICY` returns different columns — treat these as
+        data, not as a fixed schema.
+      properties:
+        A1: { type: string, description: Record number in the table. }
+        TOTAL_BROKERAGE: { type: string, examples: ["323.04"] }
+        REMESHIRE_NAME: { type: [string, "null"], description: "Remisier name. May carry trailing spaces." }
+        SUBREMESHIRE_CODE: { type: [string, "null"] }
+        REMESHIRE1_BROKERAGE: { type: [string, "null"], examples: ["274.59"] }
+        SUBREMESHIRE2_CODE: { type: [string, "null"] }
+        REMESHIRE2_NAME: { type: [string, "null"] }
+        REMESHIRE2_BROKERAGE: { type: [string, "null"], examples: ["0.00"] }
+        REMESHIRE3_NAME: { type: [string, "null"] }
+        REMESHIRE3_BROKERAGE: { type: [string, "null"], examples: ["0.00"] }
+        OWNBRK: { type: [string, "null"], description: Own brokerage, the share not passed on. }
